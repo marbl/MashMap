@@ -11,7 +11,7 @@ Follow [`INSTALL.txt`](INSTALL.txt) to compile and install the code
   ```sh
   mashmap -s reference.fna -q query.fa -o output.txt
   ```
-  The output is TAB-delimited with each line consisting of query name, length,
+  The output is space-delimited with each line consisting of query name, length,
   0-based start, end, strand, target name, length, start, end, mapping nucleotide
   identity, count of shared sketch elements and the sketch size.
 
