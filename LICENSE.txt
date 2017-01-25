@@ -14,7 +14,7 @@ MurmurHash3
   Public domain
 
 cxx-prettyprint
-  https://louisdx.github.io/cxx-prettyprint/
+  louisdx.github.io/cxx-prettyprint
   Boost Software License
 
 argvparser

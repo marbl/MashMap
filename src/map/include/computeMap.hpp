@@ -635,9 +635,7 @@ namespace skch
 
             //Print some additional statistics
             outstrm << " " << e.conservedSketches 
-              << " " << e.sketchSize 
-              << " " << e.nucIdentityUpperBound
-              << " " << e.mappedRegionComplexity;
+              << " " << e.sketchSize; 
 
             outstrm << "\n";
 
