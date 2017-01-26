@@ -26,11 +26,11 @@ Follow [`INSTALL.txt`](INSTALL.txt) to compile and install MashMap.
   
 ## Parameters
 
-For most of the use cases, default values should be appropriate. However, different parameters and their purpose can be checked using the help page `mashmap -h`. Some of the important ones are mentioned below:
+For most of the use cases, default values should be appropriate. However, different parameters and their purpose can be checked using the help page `mashmap -h`. Important ones are mentioned below:
 
 * Identity threshold (--perc_identity, --pi) : By default, its set to 85, implying read mappings with 85% identity should be reported. It can be set to 80% to account for more noisy read datasets.
 
-* Minimum read length (-m, --minReadLen) :  Defult is 5,000 bp. This is set to 5K as the current average read lengths for both ONT and PacBio are >10K. Reads below this length are ignored. 
+* Minimum read length (-m, --minReadLen) :  Default is 5,000 bp. This is set to 5K as the current average read lengths for both ONT and PacBio are >10K. Reads below this length are ignored. 
 
 * Protein sequences (-a, --protein) : Use this parameter when mapping protein sequences. MashMap adjusts alphabet and k-mer size accordingly.
 
