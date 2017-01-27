@@ -1,9 +1,11 @@
 MashMap
 ========================================================================
 
-MashMap is a fast and approximate long read (ONT/PacBio) mapper. It maps a read against a reference region if and only if it's estimated alignment identity is above a specified threshold. It doesn't compute the alignments explicitly, but rather computes the [Jaccard similarity](https://en.wikipedia.org/wiki/Jaccard_index) measure and uses a sequence error model to estimate the identity. Jaccard similarity is estimated using an algorithm based on [MinHash](https://en.wikipedia.org/wiki/MinHash) and [Winnowing](http://www.cs.princeton.edu/courses/archive/spr05/cos598E/bib/p76-schleimer.pdf) techniques. We have tested its speed, scalability and accuracy by mapping ONT as well as PacBio data to complete RefSeq database. Unlike BWA or Bowtie, MashMap does not include the pairwise alignment steps. Using Jaccard similarity estimates, it only outputs the mapping coordinate of the read as well as the nucleotide identity. It is about as fast as [minimap](https://github.com/lh3/minimap), and >200x faster than BWA-MEM. 
+MashMap is a fast and approximate long read (PacBio/ONT) mapper. It maps a read against a reference region if and only if its estimated alignment identity is above a specified threshold. It does not compute the alignments explicitly, but rather estimates a *k*-mer based [Jaccard similarity](https://en.wikipedia.org/wiki/Jaccard_index) using a combination of [Winnowing](http://www.cs.princeton.edu/courses/archive/spr05/cos598E/bib/p76-schleimer.pdf) and [MinHash](https://en.wikipedia.org/wiki/MinHash). This is then converted to an estimate of sequence identity using the [Mash](http://mash.readthedocs.org) distance. An appropriate *k*-mer sampling rate is automatically determined given minimum read length and identity thresholds. The efficiency of the algorithm improves as both of these thresholds are increased.
 
-Computing Jaccard using MinHash formula requires deciding an appropriate sketch size. MashMap autocomputes the sampling rate to ensure certain statistical significance (p-value) of the mapping results. Refer to [paper](http://biorxiv.org) to learn more about the algorithm and results.
+Unlike traditional read mappers, MashMap does not compute gapped pairwise alignments. Instead it approximates mapping positions and identities using only *k*-mers. As a result, MashMap is both extremely fast and memory efficient, enabling rapid long-read mapping to large reference databases like NCBI RefSeq. We describe the full algorithm and report on speed, scalability, and accuracy of the software here: ["A fast approximate algorithm for mapping long reads to large reference databases"](http://biorxiv.org/content/early/2017/01/27/103812).
+
+MashMap is in early development and currently reports only full-length mappings of reads to references. For split-read mapping, see Heng Li's [minimap](https://github.com/lh3/minimap), which is based on a similar idea, but does not provide identity estimates for the mapping targets it reports. We plan to add support for split-read mapping in future versions of MashMap.
 
 ## Installation
 Follow [`INSTALL.txt`](INSTALL.txt) to compile and install MashMap.
@@ -23,14 +25,14 @@ Follow [`INSTALL.txt`](INSTALL.txt) to compile and install MashMap.
   mashmap --sl referenceList.txt -q query.fa -o output.txt
   ```
   File 'referenceList.txt' containing the list of reference genomes should contain path to the reference genomes, one per line.
-  
+
 ## Parameters
 
 For most of the use cases, default values should be appropriate. However, different parameters and their purpose can be checked using the help page `mashmap -h`. Important ones are mentioned below:
 
 * Identity threshold (--perc_identity, --pi) : By default, its set to 85, implying read mappings with 85% identity should be reported. It can be set to 80% to account for more noisy read datasets.
 
-* Minimum read length (-m, --minReadLen) :  Default is 5,000 bp. This is set to 5K as the current average read lengths for both ONT and PacBio are >10K. Reads below this length are ignored. 
+* Minimum read length (-m, --minReadLen) :  Default is 5,000 bp. This is set to 5K as the current average read lengths for both ONT and PacBio are >10K. Reads below this length are ignored.
 
 * Protein sequences (-a, --protein) : Use this parameter when mapping protein sequences. MashMap adjusts alphabet and k-mer size accordingly.
 
