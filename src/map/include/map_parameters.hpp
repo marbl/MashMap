@@ -21,11 +21,7 @@ namespace skch
   struct Parameters
   {
     int kmerSize;                                     //kmer size for sketching
-    int baseWindowSize;                               //base window size used for sketching 
-    bool staticWin;                                   //switch for static winnowing
-    int dynamicWinLevels;                             //no. of hierarchical levels for dynamic windowing
-                                                      // including base level
-
+    int windowSize;                                   //window size used for sketching 
     int minReadLength;                                //minimum read length which code maps
     int alphabetSize;                                 //alphabet size
     uint64_t referenceSize;                           //Approximate reference size
@@ -35,6 +31,9 @@ namespace skch
     std::vector<std::string> querySequences;          //query sequence(s)
     std::string outFileName;                          //output file name
     bool reportAll;                                   //Report all alignments if this is true
+    //const static int L2slideJump = 5;                 //parameter to jump read during L2 evaluation, 
+                                                      //  1 is the most accurate
+
   };
 }
 

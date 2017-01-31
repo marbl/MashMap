@@ -19,6 +19,8 @@
 #include "commonFunc.hpp"
 #include "winSketch.hpp"
 #include "map_stats.hpp"
+#include "slidingMap.hpp"
+#include "MIIteratorL2.hpp"
 
 //External includes
 
@@ -30,6 +32,30 @@ namespace skch
    */
   class Map
   {
+    public:
+
+      //Type for Stage L1's predicted candidate location
+      struct L1_candidateLocus_t 
+      {
+        seqno_t seqId;                    //sequence id where read is mapped
+
+        /* read could be mapped with its begin location
+         * from [rangeStartPos, rangeEndPos]
+         */
+        offset_t rangeStartPos;
+        offset_t rangeEndPos;  
+      };
+
+      //Type for Stage L2's predicted mapping coordinate within each L1 candidate
+      struct L2_mapLocus_t 
+      {
+        seqno_t seqId;                    //sequence id where read is mapped
+        offset_t meanOptimalPos;          //Among multiple consecutive optimal positions, save the avg.
+        Sketch::MIIter_t optimalStart;    //optimal start mapping position (begin iterator)
+        Sketch::MIIter_t optimalEnd;      //optimal end mapping position (end iterator) 
+        int sharedSketchSize;             //count of shared sketch elements
+      };
+
     private:
 
       //algorithm parameters
@@ -38,27 +64,13 @@ namespace skch
       //reference sketch
       const skch::Sketch &refSketch;
 
-      //(seq. id, start ref. position, end position) for L1
-      typedef std::tuple<seqno_t, offset_t, offset_t> candidateLocus_t;
-
       //Container type for saving read sketches during L1 and L2 both
       typedef Sketch::MI_Type MinVec_Type;
 
       typedef Sketch::MIIter_t MIIter_t;
 
-      //  (seq. id, begin iterator over minimizerIndex, end iterator over minimizerIndex, 
-      //  equal minhash count, mapping strand) for L2
-      //  [begin iterator, end iterator) represents the mapped region on reference
-      typedef std::tuple<seqno_t, MIIter_t, MIIter_t, int, strand_t> mapLocus_t;
-
-      const offset_t NA = std::numeric_limits<offset_t>::max();    //hash 'Not Available' marker
-
-      //Slide read within superwindow by these many minimizers
-      int stepMinCount;
-
+      //Custom function for post processing the results, by default does nothing 
       typedef std::function< void(const MappingResult&) > PostProcessResultsFn_t;
-
-      //Custom function for post processing the results 
       PostProcessResultsFn_t processMappingResults;
 
     public:
@@ -100,7 +112,6 @@ namespace skch
           gzFile fp = gzdopen(fileno(file), "r");
           kseq_t *seq = kseq_init(fp);
 
-
 #ifdef DEBUG
           std::cout << "INFO, skch::Map::mapQuery, mapping reads in " << fileName << std::endl;
 #endif
@@ -110,11 +121,8 @@ namespace skch
 
           while ((len = kseq_read(seq)) >= 0) 
           {
-            //Get optimal window size level depending upon the read length
-            wsize_t optimalWindowSizeLevel;
-
             //Is the read too short?
-            if(len < param.baseWindowSize || len < param.kmerSize || len < param.minReadLength)
+            if(len < param.windowSize || len < param.kmerSize || len < param.minReadLength)
             {
               seqCounter++;
 
@@ -163,21 +171,11 @@ namespace skch
           auto t0 = skch::Time::now();
 #endif
 
-          //Compute optimal window size for sketching this read
-          if(param.staticWin)
-            Q.optimalWindowSizeLevel = 0;
-          else
-            Q.optimalWindowSizeLevel = Stat::recommendedWindowLevelForRead(param.p_value,
-                param.kmerSize, param.alphabetSize,
-                param.percentageIdentity,
-                Q.len, param.referenceSize,
-                param.baseWindowSize, param.dynamicWinLevels);
-
 #if ENABLE_TIME_PROFILE_L1_L2
           auto t1 = skch::Time::now();
 #endif
           //L1 Mapping
-          std::vector<candidateLocus_t> l1Mappings; 
+          std::vector<L1_candidateLocus_t> l1Mappings; 
           doL1Mapping(Q, l1Mappings);
 
 #if ENABLE_TIME_PROFILE_L1_L2
@@ -229,7 +227,7 @@ namespace skch
 
           ///1. Compute the minimizers
 
-          CommonFunc::addMinimizers(Q.minimizerTableQuery, Q.seq, param.kmerSize, param.baseWindowSize, Q.optimalWindowSizeLevel, param.alphabetSize);
+          CommonFunc::addMinimizers(Q.minimizerTableQuery, Q.seq, param.kmerSize, param.windowSize, param.alphabetSize);
 
 #ifdef DEBUG
           std::cout << "INFO, skch::Map:doL1Mapping, read id " << Q.seqCounter << ", minimizer count = " << Q.minimizerTableQuery.size() << "\n";
@@ -264,12 +262,6 @@ namespace skch
 
             }
           }
-
-          //Remove hits in the reference with window size level < optimalWindowSizeLevel
-          seedHitsL1.erase( std::remove_if( seedHitsL1.begin(), seedHitsL1.end(),
-                [&](MinimizerMetaData &e){
-                return (e.w_lev < Q.optimalWindowSizeLevel); }),
-              seedHitsL1.end()); 
 
           int minimumHits = Stat::estimateMinimumHitsRelaxed(Q.sketchSize, param.kmerSize, param.percentageIdentity);
 
@@ -308,20 +300,24 @@ namespace skch
               //[it .. it2] are 'minimumHits' consecutive hits 
 
               //Check if consecutive hits are close enough
-              if(it2->seqId == it->seqId && it2->pos - it->pos < Q.len)
+              //NOTE: hits may span more than a read length for a valid match, as we keep window positions 
+              //      for each minimizer
+              if(it2->seqId == it->seqId && it2->wpos - it->wpos < Q.len)
               {
                 //Save <1st pos --- 2nd pos>
-                candidateLocus_t candidate(it->seqId, 
-                    std::max(0, it2->pos - Q.len), it->pos + Q.len);
+                L1_candidateLocus_t candidate{it->seqId, 
+                    std::max(0, it2->wpos - Q.len + 1), it->wpos};
 
                 //Check if this candidate overlaps with last inserted one
                 auto lst = l1Mappings.end(); lst--;
 
                 //match seq_no and see if this candidate begins before last element ends
-                if(l1Mappings.size() > 0 && std::get<0>(candidate) == std::get<0>(*lst) && std::get<2>(*lst) >= std::get<1>(candidate))
+                if( l1Mappings.size() > 0 
+                    && candidate.seqId == lst->seqId 
+                    && lst->rangeEndPos >= candidate.rangeStartPos)
                 {
                   //Push the end pos of last candidate locus further out
-                  std::get<2>(*lst) = std::get<2>(candidate);
+                  lst->rangeEndPos = std::max(candidate.rangeEndPos, lst->rangeEndPos);
                 }
                 else
                   l1Mappings.push_back(candidate);
@@ -340,43 +336,16 @@ namespace skch
       template <typename Q_Info, typename VecIn, typename VecOut>
         bool doL2Mapping(Q_Info &Q, VecIn &l1Mappings, VecOut &l2Mappings)
         {
-          //Range of sketch in query
-          auto uniqEndIter = std::next(Q.minimizerTableQuery.begin(), Q.sketchSize);
-
-          /*
-           * Type of container used for walking read over the reference superwindow
-           * We choose a std map : 
-           *    [hash value -> (location in the reference superwindow, offset in query)]
-           *    offset is multiplied by strand type (+1,-1) to embed this information
-           *
-           * map preserves the sorted order of hashes, so computing jaccard similarity 
-           * is a linear walk, each time for the sliding window
-           */
-
-          //Step size
-          //TODO: Implement efficient sliding while considering all read sized windows
-          stepMinCount = getStepMinCount();
-
-          typedef std::map< hash_t, std::pair<offset_t, offset_t> > slidingMapType;
-
-          slidingMapType slidingWindowMinhashes;
-
-          for(auto it = Q.minimizerTableQuery.begin(); it != uniqEndIter; it++)
-            slidingWindowMinhashes.emplace(it->hash, std::make_pair(NA, (it->pos)*(it->strand)));     //[hash value] -> (NA, offset in query)
-
           bool mappingReported = false;
 
           ///2. Walk the read over the candidate regions and compute the jaccard similarity with minimum s sketches
           for(auto &candidateLocus: l1Mappings)
           {
-            //Reset the map to just have the query minimizers
-            slidingMapType slidingWindowMinhashesCpy = slidingWindowMinhashes;
-
-            mapLocus_t l2;
-            computeL2MappedRegions(Q, slidingWindowMinhashesCpy, candidateLocus, l2);
+            L2_mapLocus_t l2 = {};
+            computeL2MappedRegions(Q, candidateLocus, l2);
 
             //Compute mash distance using calculated jaccard
-            float mash_dist = Stat::j2md(1.0 * std::get<3>(l2)/Q.sketchSize, param.kmerSize);
+            float mash_dist = Stat::j2md(1.0 * l2.sharedSketchSize/Q.sketchSize, param.kmerSize);
 
             //Compute lower bound to mash distance within 90% confidence interval
             float mash_dist_lower_bound = Stat::md_lower_bound(mash_dist, Q.sketchSize, param.kmerSize, 0.9);
@@ -384,41 +353,46 @@ namespace skch
             float nucIdentity = 100 * (1 - mash_dist);
             float nucIdentityUpperBound = 100 * (1 - mash_dist_lower_bound);
 
-            /*
-             * Compute addtional statistics to filter out false mappings
-             * 1. Unique Minimizers in the reference
-             */
-            std::vector<float> mappingStatistics;
 
-            slidingWindowMinhashesCpy = slidingWindowMinhashes;
-            computeMappingStatistics(Q, slidingWindowMinhashesCpy, 
-                std::get<1>(l2),std::get<2>(l2), 
-                mappingStatistics); 
+            //TODO : Correct it after debugging
+            float referenceDNAComplexity = 1; //actualDensity/expectedDensity;
 
-            /*    An alignment is reported if 
-             *    the nucleotide identity is >= the percentage identity threshold
-             *    estimated complexity (uniqueness of minimizers) is above 75%
-             */
-            if(nucIdentityUpperBound >= param.percentageIdentity && mappingStatistics[0] >= 0.75)
+            //Report the alignment
+            if(nucIdentityUpperBound >= param.percentageIdentity && referenceDNAComplexity >= 0.75)
             {
               MappingResult res;
 
               //Save the output
               {
                 res.queryLen = Q.len;
-                res.refStartPos = std::get<1>(l2)->pos ;
-                res.refEndPos = std::get<1>(l2)->pos + Q.len - 1;
-                res.refSeqId = std::get<0>(l2);
+                res.refStartPos = l2.meanOptimalPos ;
+                res.refEndPos = l2.meanOptimalPos + Q.len - 1;
+                res.refSeqId = l2.seqId;
                 res.querySeqId = Q.seqCounter;
                 res.nucIdentity = nucIdentity;
                 res.nucIdentityUpperBound = nucIdentityUpperBound;
                 res.sketchSize = Q.sketchSize;
-                res.conservedSketches = std::get<3>(l2);
-                res.strand = std::get<4>(l2);
-                res.mappedRegionComplexity = mappingStatistics[0];
+                res.conservedSketches = l2.sharedSketchSize;
                 res.queryName = Q.seq->name.s; 
 
-                l2Mappings.push_back(res);
+                //Compute additional statistics -> strand, reference compexity
+                {
+                  SlideMapper<Q_Info> slidemap(Q);
+                  slidemap.insert_ref(l2.optimalStart, l2.optimalEnd);
+                  int strandVotes, uniqueRefHashes;
+                  slidemap.computeStatistics(strandVotes, uniqueRefHashes);
+
+                  res.strand = strandVotes > 0 ? strnd::FWD : strnd::REV;
+
+                  //Compute reference region complexity
+                  float actualDensity = uniqueRefHashes * 1.0 / Q.len;
+                  float expectedDensity = 2.0 / param.windowSize;
+                  res.mappedRegionComplexity = actualDensity/expectedDensity;
+
+                }
+
+                if(res.mappedRegionComplexity >= 0.75)
+                  l2Mappings.push_back(res);
               }
 
               mappingReported = true;
@@ -429,174 +403,90 @@ namespace skch
         }
 
       /**
-       * @brief       Helper function to doL2Mapping()
+       * @brief                                 Find optimal mapping within an L1 candidate
        * @param[in]   Q                         query sequence information
-       * @param[in]   slidingWindowMinhashes    container for computing min s hashes along the sliding read 
-       * @param[in]   candidateLocus            candidate region computed at L1 stage
-       * @param[out]  l2Mapping                 best read mapping location inside the given candidateLocus
+       * @param[in]   candidateLocus            L1 candidate location
+       * @param[out]  l2_out                    L2 mapping inside L1 candidate 
        */
-      template <typename Q_Info, typename MapT>
-        void computeL2MappedRegions(Q_Info &Q,
-            MapT &slidingWindowMinhashes, 
-            candidateLocus_t &candidateLocus, mapLocus_t &l2Mapping)
+      template <typename Q_Info>
+        void computeL2MappedRegions(Q_Info &Q, 
+            L1_candidateLocus_t &candidateLocus, 
+            L2_mapLocus_t &l2_out)
         {
-          //Sequence # in the reference
-          seqno_t refSequenceId = std::get<0>(candidateLocus);
+          //Look up L1 candidate's begin in the index
+          MIIter_t firstSuperWindowRangeStart = this->refSketch.searchIndex(candidateLocus.seqId, 
+              candidateLocus.rangeStartPos);
 
-          //Start of the candidate offset in the reference sequence
-          offset_t currentStart = std::get<1>(candidateLocus);
+          //Count of minimizer windows in a super-window
+          offset_t countMinimizerWindows = Q.len - (param.windowSize-1) - (param.kmerSize-1); 
 
-          /*
-           * [currentStart, currentStart + len - 1] will be the first reference 
-           * superwindow against which we compute the jaccard similarity of query
-           */
+          //Look up the end of the first L2 super-window in the index
+          MIIter_t firstSuperWindowRangeEnd = this->refSketch.searchIndex(candidateLocus.seqId, 
+              firstSuperWindowRangeStart->wpos + countMinimizerWindows);
 
-          auto startPosition = std::make_pair(refSequenceId, currentStart);
-          auto lastPosition = std::make_pair(refSequenceId, currentStart + Q.len - 1);
+          //Look up L1 candidate's end in the index
+          MIIter_t lastSuperWindowRangeEnd = this->refSketch.searchIndex(candidateLocus.seqId, 
+              candidateLocus.rangeEndPos + Q.len);
 
-#ifdef DEBUG
-          if(currentStart + Q.len - 1 > std::get<2>(candidateLocus))
-            std::cout << "WARNING, skch::Map::computeL2MappedRegions, candidate region shorter than read length" << std::endl;
-#endif
+          //Define map such that it contains only the query minimizers
+          //Used to efficiently compute the jaccard similarity between qry and ref
+          SlideMapper<Q_Info> slidemap(Q);
 
-          /*
-           * [l_iter, u_iter) represents the superwindow iterator range of minimizers 
-           * in the reference sketch index against which jaccard similarity of the 
-           * query is estimated
-           *
-           * After each window shift, we advance the range [l_iter, u_iter) forward
-           * depending on the 'stepMinCount'
-           *
-           * Therefore, each shift requires 
-           *      1. deletion of [l_iter (previous), l_iter) elements from the window
-           *      2. addition of [u_iter (previous), u_iter) elements into the window
-           */
+          //Initialize iterator over minimizerIndex
+          MIIteratorL2 mi_L2iter( firstSuperWindowRangeStart, firstSuperWindowRangeEnd,
+              countMinimizerWindows);
 
-          auto iterRange = this->refSketch.getIndexRange(startPosition, lastPosition);
-          auto l_iter = iterRange.first;
-          auto u_iter = iterRange.second;
+          //Insert all the minimizers in the first 'super-window'
+          //  [ mi_L2iter.sw_beg, mi_L2iter.sw_end )
+          slidemap.insert_ref(mi_L2iter.sw_beg, mi_L2iter.sw_end);
 
-          assert(std::distance(l_iter, u_iter) > 0);
+          auto prev_beg_iter = mi_L2iter.sw_beg;
+          auto prev_end_iter = mi_L2iter.sw_end;
 
-          //Save the best mapping locations here
-          MIIter_t bestStartIter = l_iter, bestEndIter = u_iter;
-          int maxSharedMinimizers = 0;
-          strand_t bestMatchStrandType;
+          int beginOptimalPos, lastOptimalPos;
 
-          //Previous range is null at the beginning
-          auto l_prevIter = l_iter;
-          auto u_prevIter = l_iter;
-
-          //Keep sliding till query crosses the candidate's end position
-          //Check if u_iter offset is less than L1 candidate boundary, and reference sequence id should match
-          while(u_iter->pos < std::get<2>(candidateLocus) && 
-              std::prev(u_iter)->seqId == std::get<0>(candidateLocus))
+          while ( std::distance(mi_L2iter.sw_end, lastSuperWindowRangeEnd) > 0)
           {
-            assert(std::distance(l_iter , u_iter) > 0);
+            assert( std::distance(mi_L2iter.sw_beg, firstSuperWindowRangeStart) <= 0);
+            assert( std::distance(mi_L2iter.sw_end, lastSuperWindowRangeEnd  ) >= 0);
 
-            /// 1. Push minimizers in the [u_prevIter, u_iter) range to the window
+            //Check if the previous first minimizer is out of current range
+            if (prev_beg_iter != mi_L2iter.sw_beg)
+              slidemap.delete_ref(prev_beg_iter);
 
-            for(auto it = u_prevIter; it != u_iter; it++)
+            //Check if we have new minimizer in the current range
+            if (prev_end_iter != mi_L2iter.sw_end)
+              slidemap.insert_ref(prev_end_iter);
+          
+            //Is this sliding window the best we have so far?
+            if (slidemap.sharedSketchElements > l2_out.sharedSketchSize)
             {
-              hash_t hashvalue = it->hash;
-              offset_t offsetinReference = it->pos;
-              wsize_t windowSizeLevel = it->w_lev;
-              strand_t strandType = it->strand;
+              l2_out.sharedSketchSize = slidemap.sharedSketchElements;
+              l2_out.optimalStart = mi_L2iter.sw_beg;
+              l2_out.optimalEnd = mi_L2iter.sw_end;
 
-              //Minimizer in the reference only participates if it is sketched for window >= optimalWindowSizeLevel
-              if(windowSizeLevel >= Q.optimalWindowSizeLevel)
-              {
-                //if hash doesn't exist in window
-                if(slidingWindowMinhashes.find(hashvalue) == slidingWindowMinhashes.end())
-                  slidingWindowMinhashes[hashvalue] = std::make_pair(offsetinReference * strandType, NA);   //add the hash to window
-                else
-                  slidingWindowMinhashes[hashvalue].first = offsetinReference * strandType;                 //just revise the offset 
-              }
+              //Save the position
+              beginOptimalPos = mi_L2iter.sw_beg->wpos;
+              lastOptimalPos = mi_L2iter.sw_beg->wpos;
+            }
+            else if(slidemap.sharedSketchElements == l2_out.sharedSketchSize)
+            {
+              //Still save the position
+              lastOptimalPos = mi_L2iter.sw_beg->wpos; 
             }
 
-            /// 2. Remove minimizers in the [l_prevIter, l_iter) range from the window 
+            //Back up the current iterator values
+            prev_beg_iter = mi_L2iter.sw_beg;
+            prev_end_iter = mi_L2iter.sw_end;
 
-            for(auto it = l_prevIter; it != l_iter; it++)
-            {
-              hash_t hashvalue = it->hash;
-              offset_t offsetinReference = it->pos;
-              wsize_t windowLevel = it->w_lev;
-              strand_t strandType = it->strand;
+            //Advance the current super-window
+            mi_L2iter.next();
 
-              //Minimizer in the reference only participates if it is sketched for window >= optimalWindowSizeLevel
-              if(windowLevel >= Q.optimalWindowSizeLevel)
-              {
-                //hash must exist in the map, by our logic
-                assert(slidingWindowMinhashes.find(hashvalue) != slidingWindowMinhashes.end());
+          }//End of while loop
 
-                //only if hash and offset match
-                if(slidingWindowMinhashes[hashvalue].first == offsetinReference * strandType) 
-                {
-                  //if hash belongs to query, then update the reference offset to NA
-                  if(slidingWindowMinhashes[hashvalue].second != NA)
-                    slidingWindowMinhashes[hashvalue].first = NA;
-                  else
-                  {
-                    //erase hash from map
-                    auto delIter = slidingWindowMinhashes.find(hashvalue);
-                    slidingWindowMinhashes.erase(delIter);
-                  }
-                }
-              }
-            }
-
-            assert(slidingWindowMinhashes.size() >= Q.sketchSize);
-
-            /// 3. Compute jaccard similarity now
-
-            int uniqueHashes = 0, currentSharedMinimizers = 0, strandVotes = 0;
-
-            for (auto it = slidingWindowMinhashes.cbegin(); it != slidingWindowMinhashes.cend(); ++it)
-            {
-              auto offsetValues = it->second;
-
-              if(offsetValues.first != NA && offsetValues.second != NA)
-              {
-                currentSharedMinimizers += 1;
-
-                if( (offsetValues.first ^ offsetValues.second) >= 0)
-                  strandVotes += 1;   //Both strand types match
-                else
-                  strandVotes -= 1;   //Both strand types mis-match
-              }
-
-              uniqueHashes++;
-              if(uniqueHashes == Q.sketchSize)
-                break;
-            }
-
-            //Is it the best superwindow so far?
-            if(currentSharedMinimizers > maxSharedMinimizers)
-            {
-              bestStartIter = l_iter;
-              bestEndIter = u_iter;
-              maxSharedMinimizers = currentSharedMinimizers;
-
-              if(strandVotes > 0)
-                bestMatchStrandType = strnd::FWD;
-              else
-                bestMatchStrandType = strnd::REV;
-            }
-
-            /// 4. Advance the iterator range
-
-            //Shift the window to right by stepMinCount (set to 20)
-
-            //Backup the previous iterator positions 
-            l_prevIter = l_iter; u_prevIter = u_iter;
-
-            //Compute the new iterator positions
-            if (!this->refSketch.advanceIter(l_iter, stepMinCount) || !this->refSketch.advanceIter(u_iter, stepMinCount))
-              break;
-          }
-
-          //Save the result
-          l2Mapping = std::make_tuple(refSequenceId, bestStartIter, bestEndIter, maxSharedMinimizers, bestMatchStrandType);
+          //Save reference sequence id in the mapping output 
+          l2_out.seqId = candidateLocus.seqId;
+          l2_out.meanOptimalPos = (beginOptimalPos + lastOptimalPos)/2;
         }
 
       /**
@@ -635,7 +525,7 @@ namespace skch
 
             //Print some additional statistics
             outstrm << " " << e.conservedSketches 
-              << " " << e.sketchSize; 
+              << " " << e.sketchSize;
 
             outstrm << "\n";
 
@@ -646,78 +536,11 @@ namespace skch
         }
       }
 
-      /**
-       * @brief                               compute additional statistics for mapping (post-L2)
-       * @param[in]   Q                       query sequence information
-       * @param[in]   slidingWindowMinhashes    
-       * @param[in]   refSequenceId           begin iterator on reference index by L2 mapping
-       * @param[in]   refEndItr               end iterator on reference index by L2 mapping 
-       * @param[out]  statValues     
-       */
-      template <typename Q_Info, typename MapT, typename statVec_t>
-        void computeMappingStatistics(Q_Info &Q, 
-            MapT &slidingWindowMinhashes, 
-            MIIter_t refStartItr, MIIter_t refEndItr,
-            statVec_t &statValues)
-        {
-          //Push minimizers in the [refStartItr, refEndItr) range to the map
-          for(auto it = refStartItr; it != refEndItr; it++)
-          {
-            hash_t hashvalue = it->hash;
-            offset_t offsetinReference = it->pos;
-
-            //if hash doesn't exist in window
-            if(slidingWindowMinhashes.find(hashvalue) == slidingWindowMinhashes.end())
-              slidingWindowMinhashes[hashvalue] = std::make_pair(offsetinReference, NA);   //add the hash to window
-            else
-              slidingWindowMinhashes[hashvalue].first = offsetinReference;                 //just revise the offset 
-          }
-
-          ///1. Unique Minimizers in the reference (complexity)
-          {
-            //Indicator of complexity in the mapped region
-            //range (0 - 1.x], lower value means lower complexity in the region
-            float referenceDNAComplexity; 
-
-            uint64_t uniqueHashCount = 0;
-
-            for (auto it = slidingWindowMinhashes.cbegin(); it != slidingWindowMinhashes.cend(); ++it)
-            {
-              auto offsetValues = it->second;
-
-              if(offsetValues.first != NA)    //This hash occured in the reference window
-                uniqueHashCount += 1;
-            }
-
-            float actualDensity = uniqueHashCount * 1.0 / Q.len;
-            float expectedDensity = 2.0 / param.baseWindowSize;
-
-            referenceDNAComplexity = actualDensity/expectedDensity;
-
-            statValues.push_back(referenceDNAComplexity);
-          }
-        }
-
-      /**
-       * @brief   sliding step size during L2 stage
-       * @detail  Ideally we should evaluate all sliding windows by step 1, 
-       *          which is theoretically feasible using STL map. But due to 
-       *          multiple corner cases, we resort to do sliding the read by 
-       *          more than 1 step.
-       * @return  count of minimizers to jump while sliding 
-       */
-      inline int getStepMinCount()
-      {
-        float sketchDensity = 2.0/param.baseWindowSize;
-        float percentReadSkip = 0.2;      //Jump 20% minimum read size
-        return (param.minReadLength * percentReadSkip) * sketchDensity;
-      }
-
     public:
 
       /**
        * @brief     An optional utility function to save the 
-       *            reported results
+       *            reported results by the L2 stage into a vector
        */
       static void insertL2ResultsToVec(MappingResultsVector_t &v, const MappingResult &reportedL2Result)
       {
