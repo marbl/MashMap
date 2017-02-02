@@ -37,3 +37,7 @@ For most of the use cases, default values should be appropriate. However, differ
 * Protein sequences (-a, --protein) : Use this parameter when mapping protein sequences. MashMap adjusts alphabet and k-mer size accordingly.
 
 * Report all mappings, not just the best ones (--all)
+
+## Release
+
+Use the [latest release](https://github.com/marbl/MashMap/releases) for a stable version. In case your goal is to reproduce the results in the [Mashmap paper](http://biorxiv.org/content/early/2017/01/27/103812), you should use the very  [first version](https://github.com/marbl/MashMap/releases/tag/v1.0). 
