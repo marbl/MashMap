@@ -1,4 +1,4 @@
-CXXFLAGS += -O3 -DNDEBUG -std=c++11 -Isrc/common -Isrc/map/include -I @mathinc@
+CXXFLAGS += -O3 -DNDEBUG -std=c++11 -Isrc -I @mathinc@
 CPPFLAGS += @amcppflags@
 
 UNAME_S=$(shell uname -s)
