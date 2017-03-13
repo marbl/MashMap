@@ -14,13 +14,13 @@
 #include <zlib.h>  
 
 //Own includes
-#include "base_types.hpp"
-#include "map_parameters.hpp"
-#include "commonFunc.hpp"
-#include "winSketch.hpp"
-#include "map_stats.hpp"
-#include "slidingMap.hpp"
-#include "MIIteratorL2.hpp"
+#include "map/include/base_types.hpp"
+#include "map/include/map_parameters.hpp"
+#include "map/include/commonFunc.hpp"
+#include "map/include/winSketch.hpp"
+#include "map/include/map_stats.hpp"
+#include "map/include/slidingMap.hpp"
+#include "map/include/MIIteratorL2.hpp"
 
 //External includes
 
@@ -353,12 +353,8 @@ namespace skch
             float nucIdentity = 100 * (1 - mash_dist);
             float nucIdentityUpperBound = 100 * (1 - mash_dist_lower_bound);
 
-
-            //TODO : Correct it after debugging
-            float referenceDNAComplexity = 1; //actualDensity/expectedDensity;
-
             //Report the alignment
-            if(nucIdentityUpperBound >= param.percentageIdentity && referenceDNAComplexity >= 0.75)
+            if(nucIdentityUpperBound >= param.percentageIdentity)
             {
               MappingResult res;
 
@@ -391,8 +387,7 @@ namespace skch
 
                 }
 
-                if(res.mappedRegionComplexity >= 0.75)
-                  l2Mappings.push_back(res);
+                l2Mappings.push_back(res);
               }
 
               mappingReported = true;
@@ -526,6 +521,7 @@ namespace skch
             //Print some additional statistics
             outstrm << " " << e.conservedSketches 
               << " " << e.sketchSize;
+              //<< " " << e.mappedRegionComplexity;
 
             outstrm << "\n";
 
