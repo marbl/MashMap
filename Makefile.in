@@ -19,6 +19,9 @@ all : mashmap
 mashmap : $(OBJECTS) 
 	$(CXX) $(CXXFLAGS) $(CPPFLAGS) $(OBJECTS) -o mashmap @mathlib@ -lstdc++ -lz -lm -lpthread 
 
+winmin : src/winnowed_minhash/winMinHash.o
+	$(CXX) $(CXXFLAGS) $(CPPFLAGS) src/winnowed_minhash/winMinHash.o -o winmin @mathlib@ -lstdc++ -lz -lm -lpthread
+
 .SUFFIXES :
 
 %.o : %.cpp 
@@ -33,4 +36,6 @@ install : mashmap
 
 clean :
 	-rm -f mashmap
+	-rm -f winmin
 	-rm -f src/map/*.o
+	-rm -f src/winnowed_minhash/*.o
