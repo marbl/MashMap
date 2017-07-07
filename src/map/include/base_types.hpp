@@ -89,29 +89,52 @@ namespace skch
   template <typename KSEQ, typename MinimizerVec>
     struct QueryMetaData
     {
-      KSEQ seq;                           //query sequence object pointer (kseq library) 
+      KSEQ kseq;                          //query sequence object pointer (kseq library) 
       seqno_t seqCounter;                 //query sequence counter
-      offset_t len;                       //length of this query sequence
       int sketchSize;                     //sketch size
       MinimizerVec minimizerTableQuery;   //Vector of minimizers in the query 
     };
 
-  //Final mapping result
+  //A tuple to save score for split read mapping
+  struct SplitScore
+  {
+    offset_t chainLen;
+    float avgIdentity;
+
+    //Lexographical less than comparison
+    static bool less(const SplitScore& x, const SplitScore& y) {
+      return std::tie(x.chainLen, x.avgIdentity) < std::tie(y.chainLen, y.avgIdentity);
+    }
+
+    //Approximately equal (used for filtering mappings)
+    static bool comparable(const SplitScore& x, const SplitScore& best) {
+      return (x.chainLen == best.chainLen) && (x.avgIdentity >= best.avgIdentity - 1.0);
+    }
+  };
+
+  //Fragment mapping result
   struct MappingResult
   {
-    offset_t queryLen;                //length of the query sequence
-    offset_t refStartPos;             //start position of the mapping on reference
-    offset_t refEndPos;               //end pos
-    seqno_t refSeqId;                 //internal sequence id of the reference contig
-    seqno_t querySeqId;               //internal sequence id of the query sequence
-    float nucIdentity;                //calculated identity
-    float nucIdentityUpperBound;      //upper bound on identity (90% C.I.)
-    int sketchSize;                   //sketch size
-    int conservedSketches;            //count of conserved sketches
-    strand_t strand;                  //strand
-    float mappedRegionComplexity;     //estimated entropy in the mapped region on reference
-    std::string queryName;            //name of query sequence
+    offset_t queryLen;                                  //length of the query sequence
+    offset_t refStartPos;                               //start position of the mapping on reference
+    offset_t refEndPos;                                 //end pos
+    offset_t queryStartPos;                             //start position of the query for this mapping
+    offset_t queryEndPos;                               //end position of the query for this mapping
+    seqno_t refSeqId;                                   //internal sequence id of the reference contig
+    seqno_t querySeqId;                                 //internal sequence id of the query sequence
+    float nucIdentity;                                  //calculated identity
+    float nucIdentityUpperBound;                        //upper bound on identity (90% C.I.)
+    int sketchSize;                                     //sketch size
+    int conservedSketches;                              //count of conserved sketches
+    strand_t strand;                                    //strand
+
+                                                        //--for split read mapping
+
+    offset_t splitMappingId;                            // To identify split mappings that are chained
+    int pickedAsBest;                                   // 1 if yes, -1 if no
+    SplitScore splitMapScore;                           // chain length, identity
   };
+
 
   typedef std::vector<MappingResult> MappingResultsVector_t;
 }

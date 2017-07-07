@@ -55,8 +55,8 @@ P-value is not considered if a window value is provided. Lower window size impli
         ArgvParser::OptionRequiresValue);
     cmd.defineOptionAlternative("window","w");
 
-    cmd.defineOption("minReadLen", "minimum read length to map [default : 5000]", ArgvParser::OptionRequiresValue);
-    cmd.defineOptionAlternative("minReadLen","m");
+    cmd.defineOption("minMatchLen", "minimum match length [default : 5000]", ArgvParser::OptionRequiresValue);
+    cmd.defineOptionAlternative("minMatchLen","m");
 
     cmd.defineOption("perc_identity", "threshold for identity [default : 85]", ArgvParser::OptionRequiresValue);
     cmd.defineOptionAlternative("perc_identity","pi");
@@ -65,6 +65,8 @@ P-value is not considered if a window value is provided. Lower window size impli
     cmd.defineOptionAlternative("protein","a");
 
     cmd.defineOption("all", "report all the mapping locations for a read, default is to consider few best ones");
+
+    cmd.defineOption("split", "enable split read mapping");
 
     cmd.defineOption("output", "output file name", ArgvParser::OptionRequired | ArgvParser::OptionRequiresValue);
     cmd.defineOptionAlternative("output","o");
@@ -137,7 +139,7 @@ P-value is not considered if a window value is provided. Lower window size impli
     std::cout << "Query = " << parameters.querySequences << std::endl;
     std::cout << "Kmer size = " << parameters.kmerSize << std::endl;
     std::cout << "Window size = " << parameters.windowSize << std::endl;
-    std::cout << "Read length >= " << parameters.minReadLength << std::endl;
+    std::cout << "Match length >= " << parameters.minMatchLength << (parameters.split ? " --split":"") << std::endl;
     std::cout << "Alphabet = " << (parameters.alphabetSize == 4 ? "DNA" : "AA") << std::endl;
     std::cout << "P-value = " << parameters.p_value << std::endl;
     std::cout << "Percentage identity threshold = " << parameters.percentageIdentity << std::endl;
@@ -235,6 +237,13 @@ P-value is not considered if a window value is provided. Lower window size impli
     else
       parameters.reportAll = false;
 
+    if(cmd.foundOption("split"))
+    {
+      parameters.split = true;
+    }
+    else
+      parameters.split = false;
+
 
     //Parse algorithm parameters
     if(cmd.foundOption("kmer"))
@@ -260,14 +269,14 @@ P-value is not considered if a window value is provided. Lower window size impli
     else
       parameters.p_value = 1e-03;
 
-    if(cmd.foundOption("minReadLen"))
+    if(cmd.foundOption("minMatchLen"))
     {
-      str << cmd.optionValue("minReadLen");
-      str >> parameters.minReadLength;
+      str << cmd.optionValue("minMatchLen");
+      str >> parameters.minMatchLength;
       str.clear();
     }
     else
-      parameters.minReadLength = 5000;
+      parameters.minMatchLength = 5000;
 
     if(cmd.foundOption("perc_identity"))
     {
@@ -289,10 +298,13 @@ P-value is not considered if a window value is provided. Lower window size impli
       str.clear();
 
       //Re-estimate p value
-      int s = parameters.minReadLength * 2 / parameters.windowSize; 
+      
+      int lengthQuery = parameters.split ? parameters.minMatchLength/2 : parameters.minMatchLength;
+
+      int s = lengthQuery * 2 / parameters.windowSize; 
       parameters.p_value = skch::Stat::estimate_pvalue (s, parameters.kmerSize, parameters.alphabetSize, 
           parameters.percentageIdentity, 
-          parameters.minReadLength, parameters.referenceSize);
+          lengthQuery, parameters.referenceSize);
     }
     else
     {
@@ -300,7 +312,8 @@ P-value is not considered if a window value is provided. Lower window size impli
       parameters.windowSize = skch::Stat::recommendedWindowSize(parameters.p_value,
           parameters.kmerSize, parameters.alphabetSize,
           parameters.percentageIdentity,
-          parameters.minReadLength, parameters.referenceSize);
+          parameters.minMatchLength, parameters.referenceSize,
+          parameters.split);
     }
 
     str << cmd.optionValue("output");

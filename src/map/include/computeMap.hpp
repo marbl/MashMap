@@ -101,7 +101,7 @@ namespace skch
         //Some reads are dropped because of short length
         seqno_t totalReadsPickedForMapping = 0;
         seqno_t totalReadsMapped = 0;
-        seqno_t seqCounter = 0;
+        seqno_t seqCounter = 0;     
 
         std::ofstream outstrm(param.outFileName);
 
@@ -121,10 +121,11 @@ namespace skch
 
           while ((len = kseq_read(seq)) >= 0) 
           {
+            seqCounter++;
+
             //Is the read too short?
-            if(len < param.windowSize || len < param.kmerSize || len < param.minReadLength)
+            if(len < param.windowSize || len < param.kmerSize || len < param.minMatchLength)
             {
-              seqCounter++;
 
 #ifdef DEBUG
               std::cout << "WARNING, skch::Map::mapQuery, read is not long enough for mapping" << std::endl;
@@ -134,21 +135,73 @@ namespace skch
             }
             else 
             {
-              QueryMetaData <decltype(seq), MinVec_Type> Q;
+              MappingResultsVector_t readMappings;  //Aggregate mapping results for this read
 
-              Q.seq = seq;
-              Q.seqCounter = seqCounter;
-              Q.len = len; 
+              totalReadsPickedForMapping++;
 
-              //Map this sequence
-              bool mappingReported = mapSingleQuerySeq(Q, outstrm);
-              if(mappingReported)
+              if(! param.split)   
+              {
+                QueryMetaData <decltype(seq), MinVec_Type> Q;
+                Q.kseq = seq;
+                Q.seqCounter = seqCounter;
+
+                MappingResultsVector_t l2Mappings;   
+
+                //Map this sequence
+                mapSingleQuerySeq(Q, l2Mappings, outstrm);
+
+                readMappings.insert(readMappings.end(), l2Mappings.begin(), l2Mappings.end());
+              }
+              else  //Split read mapping
+              {
+                int fragmentCount = len / (param.minMatchLength/2);
+                bool mappingReported = false;
+                
+                for (int i = 0; i < fragmentCount; i++)
+                {
+                  auto seqCopy = *seq;
+
+                  QueryMetaData <decltype(seq), MinVec_Type> Q;
+                  Q.kseq = &seqCopy;
+                  Q.kseq->seq.s = seq->seq.s + i * (param.minMatchLength/2);
+                  Q.kseq->seq.l = (param.minMatchLength/2);
+                  Q.seqCounter = seqCounter;
+
+                  MappingResultsVector_t l2Mappings;   
+
+                  //Map this sequence
+                  mappingReported = mapSingleQuerySeq(Q, l2Mappings, outstrm) || mappingReported;
+
+                  std::for_each(l2Mappings.begin(), l2Mappings.end(), [&](MappingResult &e){ 
+                      e.queryLen = len;
+                      e.queryStartPos = i * (param.minMatchLength/2);
+                      e.queryEndPos = i * (param.minMatchLength/2) + Q.kseq->seq.l - 1;
+                    });
+
+                  readMappings.insert(readMappings.end(), l2Mappings.begin(), l2Mappings.end());
+                }
+
+              }
+
+              if(readMappings.size() > 0)
                 totalReadsMapped++;
 
-              seqCounter++;
-              totalReadsPickedForMapping++;
+#ifdef DEBUG
+          std::cout << "INFO, skch::Map:mapQuery, read " << seq->name.s << ", reads ready to be merged/filtered, initial mapping count = " << readMappings.size() << std::endl;
+#endif
+
+              //merge and filter 
+              mergeOrFilterMappings(readMappings);
+
+#ifdef DEBUG
+          std::cout << "INFO, skch::Map:mapQuery, ... successfully merged/filtered, final mapping count = " << readMappings.size() << std::endl;
+#endif
+
+              //Write mapping results for this read to stdout
+              reportReadMappings(readMappings, seq, outstrm);
+
             }
-          }
+          } //Finish reading query input file
 
           //Close the input file
           kseq_destroy(seq);  
@@ -160,12 +213,13 @@ namespace skch
       }
 
       /**
-       * @brief               map the parsed query sequence (L1 and L2 mapping)
-       * @param[in] Q         metadata about query sequence
-       * @param[in] outstrm   outstream stream where mappings will be reported
+       * @brief                   map the parsed query sequence (L1 and L2 mapping)
+       * @param[in]   Q           metadata about query sequence
+       * @param[in]   outstrm     outstream stream where mappings will be reported
+       * @param[out]  l2Mappings  Mapping results in the L2 stage
        */
-      template<typename Q_Info>
-        inline bool mapSingleQuerySeq(Q_Info &Q, std::ofstream &outstrm)
+      template<typename Q_Info, typename VecOut>
+        inline bool mapSingleQuerySeq(Q_Info &Q, VecOut &l2Mappings, std::ofstream &outstrm)
         {
 #if ENABLE_TIME_PROFILE_L1_L2
           auto t0 = skch::Time::now();
@@ -184,11 +238,7 @@ namespace skch
 #endif
 
           //L2 Mapping
-          MappingResultsVector_t l2Mappings;
-          bool mappingReported = doL2Mapping(Q, l1Mappings, l2Mappings);
-
-          //Write mapping results to file
-          reportL2Mappings(l2Mappings, outstrm);
+          doL2Mapping(Q, l1Mappings, l2Mappings);
 
 
 #if ENABLE_TIME_PROFILE_L1_L2
@@ -205,8 +255,6 @@ namespace skch
               << "\n";
           }
 #endif
-
-          return mappingReported;
         }
 
       /**
@@ -227,7 +275,7 @@ namespace skch
 
           ///1. Compute the minimizers
 
-          CommonFunc::addMinimizers(Q.minimizerTableQuery, Q.seq, param.kmerSize, param.windowSize, param.alphabetSize);
+          CommonFunc::addMinimizers(Q.minimizerTableQuery, Q.kseq, param.kmerSize, param.windowSize, param.alphabetSize);
 
 #ifdef DEBUG
           std::cout << "INFO, skch::Map:doL1Mapping, read id " << Q.seqCounter << ", minimizer count = " << Q.minimizerTableQuery.size() << "\n";
@@ -274,9 +322,6 @@ namespace skch
 
 #ifdef DEBUG
           std::cout << "INFO, skch::Map:doL1Mapping, read id " << Q.seqCounter << ", Count of L1 hits in the reference = " << seedHitsL1.size() << ", minimum hits required for a candidate = " << minimumHits << ", Count of L1 candidate regions = " << l1Mappings.size() << "\n";
-
-          for(auto &e : l1Mappings)
-            std::cout << "INFO, skch::Map:doL1Mapping, read id " << Q.seqCounter << ", L1 candidate : [" << this->refSketch.metadata[std::get<0>(e)].name << " " << this->refSketch.metadata[std::get<0>(e)].len << " " << std::get<1>(e) << " " << std::get<2>(e) << "]\n";
 #endif
 
         }
@@ -307,11 +352,11 @@ namespace skch
               //Check if consecutive hits are close enough
               //NOTE: hits may span more than a read length for a valid match, as we keep window positions 
               //      for each minimizer
-              if(it2->seqId == it->seqId && it2->wpos - it->wpos < Q.len)
+              if(it2->seqId == it->seqId && it2->wpos - it->wpos < Q.kseq->seq.l)
               {
                 //Save <1st pos --- 2nd pos>
                 L1_candidateLocus_t candidate{it->seqId, 
-                    std::max(0, it2->wpos - Q.len + 1), it->wpos};
+                    std::max(0, it2->wpos - offset_t(Q.kseq->seq.l) + 1), it->wpos};
 
                 //Check if this candidate overlaps with last inserted one
                 auto lst = l1Mappings.end(); lst--;
@@ -336,13 +381,10 @@ namespace skch
        * @param[in]   Q                         query sequence information
        * @param[in]   l1Mappings                candidate regions for query sequence found at L1
        * @param[out]  l2Mappings                Mapping results in the L2 stage
-       * @return      T/F                       true if atleast 1 mapping region is proposed
        */
       template <typename Q_Info, typename VecIn, typename VecOut>
-        bool doL2Mapping(Q_Info &Q, VecIn &l1Mappings, VecOut &l2Mappings)
+        void doL2Mapping(Q_Info &Q, VecIn &l1Mappings, VecOut &l2Mappings)
         {
-          bool mappingReported = false;
-
           ///2. Walk the read over the candidate regions and compute the jaccard similarity with minimum s sketches
           for(auto &candidateLocus: l1Mappings)
           {
@@ -365,16 +407,17 @@ namespace skch
 
               //Save the output
               {
-                res.queryLen = Q.len;
+                res.queryLen = Q.kseq->seq.l;
                 res.refStartPos = l2.meanOptimalPos ;
-                res.refEndPos = l2.meanOptimalPos + Q.len - 1;
+                res.refEndPos = l2.meanOptimalPos + Q.kseq->seq.l - 1;
+                res.queryStartPos = 0;
+                res.queryEndPos = Q.kseq->seq.l - 1;
                 res.refSeqId = l2.seqId;
                 res.querySeqId = Q.seqCounter;
                 res.nucIdentity = nucIdentity;
                 res.nucIdentityUpperBound = nucIdentityUpperBound;
                 res.sketchSize = Q.sketchSize;
                 res.conservedSketches = l2.sharedSketchSize;
-                res.queryName = Q.seq->name.s; 
 
                 //Compute additional statistics -> strand, reference compexity
                 {
@@ -384,22 +427,12 @@ namespace skch
                   slidemap.computeStatistics(strandVotes, uniqueRefHashes);
 
                   res.strand = strandVotes > 0 ? strnd::FWD : strnd::REV;
-
-                  //Compute reference region complexity
-                  float actualDensity = uniqueRefHashes * 1.0 / Q.len;
-                  float expectedDensity = 2.0 / param.windowSize;
-                  res.mappedRegionComplexity = actualDensity/expectedDensity;
-
                 }
 
                 l2Mappings.push_back(res);
               }
-
-              mappingReported = true;
             }
           }
-
-          return mappingReported;
         }
 
       /**
@@ -418,7 +451,7 @@ namespace skch
               candidateLocus.rangeStartPos);
 
           //Count of minimizer windows in a super-window
-          offset_t countMinimizerWindows = Q.len - (param.windowSize-1) - (param.kmerSize-1); 
+          offset_t countMinimizerWindows = Q.kseq->seq.l - (param.windowSize-1) - (param.kmerSize-1); 
 
           //Look up the end of the first L2 super-window in the index
           MIIter_t firstSuperWindowRangeEnd = this->refSketch.searchIndex(candidateLocus.seqId, 
@@ -426,7 +459,7 @@ namespace skch
 
           //Look up L1 candidate's end in the index
           MIIter_t lastSuperWindowRangeEnd = this->refSketch.searchIndex(candidateLocus.seqId, 
-              candidateLocus.rangeEndPos + Q.len);
+              candidateLocus.rangeEndPos + Q.kseq->seq.l);
 
           //Define map such that it contains only the query minimizers
           //Used to efficiently compute the jaccard similarity between qry and ref
@@ -490,52 +523,241 @@ namespace skch
         }
 
       /**
-       * @brief                     Report the final L2 mappings to output stream
-       * @param[in]   l2Mappings    mapping results
-       * @param[in]   outstrm       file output stream object
+       * @brief                       Merge the consecutive fragment mappings reported in each query 
+       *                              Apply filtering heuristics to select the 'best' ones
+       * @param[in/out] readMappings  Mappings computed by Mashmap (L2 stage) for a read
+       * NOTE                         Jaccard similarity statistics for all merged mappings reported
+       *                              become invalid in the end 
        */
-      void reportL2Mappings(MappingResultsVector_t &l2Mappings, 
-          std::ofstream &outstrm)
-      {
-        float bestNucIdentity = 0;
-
-        //Scan through the mappings to check best identity mapping
-        for(auto &e : l2Mappings)
+      template <typename VecIn>
+        void mergeOrFilterMappings(VecIn &readMappings)
         {
-          if(e.nucIdentity > bestNucIdentity)
-            bestNucIdentity = e.nucIdentity;
+          if(param.split)
+          {
+            //length of the read fragment done for split mapping
+            auto fragmentLength = param.minMatchLength/2; 
+
+            //Sort the mappings by reference position and query position
+            std::sort(readMappings.begin(), readMappings.end(), [](const MappingResult &a, const MappingResult &b)  
+                {
+                return std::tie(a.refSeqId, a.refStartPos, a.queryStartPos) < std::tie(b.refSeqId, b.refStartPos, b.queryStartPos);
+                });
+
+            //First assign a unique id to each split mapping in the sorted order
+            for(auto it = readMappings.begin(); it != readMappings.end(); it++)
+            {
+              it->splitMappingId = std::distance(readMappings.begin(), it);
+            }
+
+            //Start the procedure to identify the chains
+            for(auto it = readMappings.begin(); it != readMappings.end(); it++)
+            {
+              //Which fragment is this wrt. the complete read
+              auto currMappingFragno = it->queryStartPos/fragmentLength;
+
+              // current mapping strand 
+              auto currStrand = it->strand;  
+
+              for(auto it2 = std::next(it); it2 != readMappings.end(); it2++)
+              {
+                auto thisMappingNo = std::distance(readMappings.begin(), it2);
+                auto thisMappingFragno = it2->queryStartPos / fragmentLength;
+
+                //If this mapping is too far from current mapping being evaluated, stop finding a merge
+                if(it2->refSeqId != it->refSeqId || it2->refStartPos - it->refEndPos > 2 * fragmentLength)
+                  break;
+
+                //If the next mapping is within range, check if it is consecutive query fragment and strand matches
+                if( it2->strand == it->strand
+                    && thisMappingFragno == currMappingFragno + (it->strand == strnd::FWD ? 1 : -1) )
+                {
+                  it2->splitMappingId = it->splitMappingId;   //merge
+                  continue;
+                }
+              }
+            }
+
+            //Update score for each fragment mapping
+
+            //Sort the mappings by post-merge split mapping id
+            std::sort(readMappings.begin(), readMappings.end(), [](const MappingResult &a, const MappingResult &b)  
+                {
+                return a.splitMappingId < b.splitMappingId;
+                });
+
+            for(auto it = readMappings.begin(); it != readMappings.end();)
+            {
+              //Bucket by each chain
+              auto it_end = std::find_if(it, readMappings.end(), [&](const MappingResult &e){return e.splitMappingId != it->splitMappingId;} ); 
+
+              //[it -- it_end) represents same chain
+              offset_t chainQryStart = it->queryStartPos;
+              offset_t chainQryEnd = it->queryEndPos;
+
+              //compute chain length
+              std::for_each(it, it_end, [&](MappingResult &e)
+                  {
+                  chainQryStart = std::min( chainQryStart, e.queryStartPos);
+                  chainQryEnd = std::max( chainQryEnd, e.queryEndPos);
+                  });
+
+              offset_t chainLength = chainQryEnd - chainQryStart + 1;
+
+              auto meanIdentity = (std::accumulate(it, it_end, 0.0, 
+                    [](double x, MappingResult &e){ return x + e.nucIdentity; })) 
+                / std::distance(it, it_end);
+
+              std::for_each(it, it_end, [&](MappingResult &e){ e.splitMapScore = {chainLength, float(meanIdentity)} ; });
+
+              //advance the iterator
+              it = it_end;
+            }
+
+            //Sort the mappings by query position
+            std::sort(readMappings.begin(), readMappings.end(), [](const MappingResult &a, const MappingResult &b)  
+                {
+                return a.queryStartPos < b.queryStartPos;
+                });
+
+            for(auto it = readMappings.begin(); it != readMappings.end();)
+            {
+              //Bucket by same query fragment
+              auto it_end = std::find_if(it, readMappings.end(), [&](const MappingResult &e){return e.queryStartPos != it->queryStartPos;} ); 
+
+              //[it -- it_end) fragments lie at the same level wrt. query axis
+
+              skch::SplitScore bestSplitMapScore = {0 /*chainLen*/, 0.0 /*Identity*/};
+
+              //Find out best match with highest jaccard
+              std::for_each(it, it_end, [&](const MappingResult &e){ bestSplitMapScore = std::max(bestSplitMapScore, e.splitMapScore, skch::SplitScore::less); });
+
+              if( param.reportAll == false)
+              {
+                //mark the ones which are close to best split score
+                std::for_each(it, it_end, [&](MappingResult &e){ e.pickedAsBest = skch::SplitScore::comparable(e.splitMapScore, bestSplitMapScore) ? 1 : -1; });  
+
+                //How many mappings are picked as best?
+                auto countBestMappings = std::count_if(it, it_end, [&](MappingResult &e){ return e.pickedAsBest == 1; });
+                if(countBestMappings > 25)
+                  std::for_each(it, it_end, [&](MappingResult &e){ e.pickedAsBest = -1; });
+              }
+              else
+              {
+                std::for_each(it, it_end, [&](MappingResult &e){ e.pickedAsBest = 1; });
+              }
+
+              it = it_end;
+            }
+
+            //Sort the mappings by chain id
+            std::sort(readMappings.begin(), readMappings.end(), [](const MappingResult &a, const MappingResult &b)  
+                {
+                return a.splitMappingId < b.splitMappingId;
+                });
+
+            for(auto it = readMappings.begin(); it != readMappings.end();)
+            {
+              //Bucket by each chain
+              auto it_end = std::find_if(it, readMappings.end(), [&](const MappingResult &e){return e.splitMappingId != it->splitMappingId;} ); 
+
+              //[it -- it_end) represents same chain
+              //compute chain mapping boundaries
+              offset_t chainQryStart = it->queryStartPos;
+              offset_t chainRefStart = it->refStartPos;
+              offset_t chainQryEnd = it->queryEndPos;
+              offset_t chainRefEnd = it->refEndPos;
+              bool reportThisChain = false;
+
+              //compute chain length
+              std::for_each(it, it_end, [&](MappingResult &e)
+                  {
+                  chainQryStart = std::min( chainQryStart, e.queryStartPos);
+                  chainRefStart = std::min( chainRefStart, e.refStartPos);
+                  chainQryEnd = std::max( chainQryEnd, e.queryEndPos);
+                  chainRefEnd = std::max( chainRefEnd, e.refEndPos);
+                  reportThisChain = e.pickedAsBest == 1 ? true : reportThisChain;
+                  });
+
+              if(reportThisChain)
+              {
+                it->queryStartPos = chainQryStart;
+                it->refStartPos = chainRefStart;
+                it->queryEndPos = chainQryEnd;
+                it->refEndPos = chainRefEnd;
+                it->pickedAsBest = 1;
+                std::for_each(std::next(it), it_end, [&](MappingResult &e){ e.pickedAsBest = -1; });
+              }
+              else
+              {
+                std::for_each(it, it_end, [&](MappingResult &e){ e.pickedAsBest = -1; });
+              }
+
+              //advance the iterator
+              it = it_end;
+            }
+          }
+          else    //Non-split mapping
+          {
+            //Report top 1% mappings (unless reportAll flag is true, in which case we report all)
+            if( param.reportAll == false)
+            {
+              float bestNucIdentity = 0.0;
+
+              //Scan through the mappings to check best identity mapping
+              for(auto &e : readMappings)
+              {
+                if(e.nucIdentity > bestNucIdentity)
+                  bestNucIdentity = e.nucIdentity;
+              }
+
+              //mark as 'best' if identity >= best - 1.0
+              std::for_each(readMappings.begin(), readMappings.end(), [&](MappingResult &e){ e.pickedAsBest = (e.nucIdentity >= bestNucIdentity - 1.0) ? 1 : -1; });  
+
+              //How many mappings are picked as best?
+              auto countBestMappings = std::count_if(readMappings.begin(), readMappings.end(), [&](MappingResult &e){ return e.pickedAsBest == 1; });
+              if(countBestMappings > 25)    //Ignore all if too many
+                std::for_each(readMappings.begin(), readMappings.end(), [&](MappingResult &e){ e.pickedAsBest = -1; });
+            }
+          }
+
+          readMappings.erase( 
+              std::remove_if(readMappings.begin(), readMappings.end(), [&](MappingResult &e){ return e.pickedAsBest == -1; }),
+              readMappings.end());
         }
 
-        //Print the results
-        for(auto &e : l2Mappings)
+      /**
+       * @brief                     Report the final read mappings to output stream
+       * @param[in]   readMappings  mapping results for a read
+       * @param[in]   seq           read parser object, to print query name
+       * @param[in]   outstrm       file output stream object
+       */
+      template <typename KSEQ>
+        void reportReadMappings(MappingResultsVector_t &readMappings, KSEQ seq, 
+            std::ofstream &outstrm)
         {
-          //Report top 1% mappings (unless reportAll flag is true, in which case we report all)
-          if(param.reportAll == true || e.nucIdentity >= bestNucIdentity - 1.0)
+          //Print the results
+          for(auto &e : readMappings)
           {
-            outstrm << e.queryName 
+            outstrm << seq->name.s 
               << " " << e.queryLen 
-              << " " << "0"
-              << " " << e.queryLen - 1 
+              << " " << e.queryStartPos
+              << " " << e.queryEndPos
               << " " << (e.strand == strnd::FWD ? "+" : "-") 
               << " " << this->refSketch.metadata[e.refSeqId].name
               << " " << this->refSketch.metadata[e.refSeqId].len
               << " " << e.refStartPos 
               << " " << e.refEndPos
-              << " " << e.nucIdentity;
+              << " " << (param.split ? e.splitMapScore.avgIdentity : e.nucIdentity);
 
             //Print some additional statistics
             outstrm << " " << e.conservedSketches 
-              << " " << e.sketchSize;
-              //<< " " << e.mappedRegionComplexity;
-
-            outstrm << "\n";
+              << " " << e.sketchSize << "\n";
 
             //User defined processing of the results
             if(processMappingResults != nullptr)
               processMappingResults(e);
           }
         }
-      }
 
     public:
 

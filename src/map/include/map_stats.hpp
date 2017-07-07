@@ -213,21 +213,29 @@ namespace skch
     }
 
     /**
-     * @brief                     calculate minimum window size for sketching that satisfies
-     *                            the given p-value threshold
-     * @param[in] pValue_cutoff   cut off p-value threshold
-     * @param[in] k               kmer size
-     * @param[in] alphabetSize    alphabet size
-     * @param[in] identity        mapping identity cut-off
-     * @param[in] lengthQuery     query length
-     * @param[in] lengthReference reference length
-     * @return                    optimal window size for sketching
+     * @brief                       calculate minimum window size for sketching that satisfies
+     *                              the given p-value threshold
+     * @param[in] pValue_cutoff     cut off p-value threshold
+     * @param[in] k                 kmer size
+     * @param[in] alphabetSize      alphabet size
+     * @param[in] identity          mapping identity cut-off
+     * @param[in] minMatchLength    minimum sequence match length
+     * @param[in] lengthReference   reference length
+     * @param[in] split             boolean input for split read mapping
+     * @return                      optimal window size for sketching
      */
     inline int recommendedWindowSize(double pValue_cutoff,
         int k, int alphabetSize,
         float identity,
-        int lengthQuery, uint64_t lengthReference)
+        int minMatchLength, uint64_t lengthReference,
+        bool split)
     {
+      int lengthQuery = minMatchLength;
+
+      //fragments are half minMatchLength if split read mapping is enabled 
+      if(split)
+        lengthQuery = minMatchLength/2;  
+
       //Push all the sketch values that we should try out in a vector
       //{1, 2, 5, 10, 20, 30...}
       std::vector<int> potentialSketchValues{1,2,5};
