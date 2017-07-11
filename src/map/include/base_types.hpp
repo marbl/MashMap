@@ -85,6 +85,14 @@ namespace skch
     REV = -1
   };  
 
+  //filter mode in mashmap
+  enum filter : int
+  {
+    MAP = 1,                              //filter by query axis
+    DOT = 2,                              //filter by query axis and reference axis
+    NONE = 3                              //no filtering
+  };
+
   //Information about query sequence during L1/L2 mapping
   template <typename KSEQ, typename MinimizerVec>
     struct QueryMetaData
@@ -94,23 +102,6 @@ namespace skch
       int sketchSize;                     //sketch size
       MinimizerVec minimizerTableQuery;   //Vector of minimizers in the query 
     };
-
-  //A tuple to save score for split read mapping
-  struct SplitScore
-  {
-    offset_t chainLen;
-    float avgIdentity;
-
-    //Lexographical less than comparison
-    static bool less(const SplitScore& x, const SplitScore& y) {
-      return std::tie(x.chainLen, x.avgIdentity) < std::tie(y.chainLen, y.avgIdentity);
-    }
-
-    //Approximately equal (used for filtering mappings)
-    static bool comparable(const SplitScore& x, const SplitScore& best) {
-      return (x.chainLen == best.chainLen) && (x.avgIdentity >= best.avgIdentity - 1.0);
-    }
-  };
 
   //Fragment mapping result
   struct MappingResult
@@ -131,10 +122,16 @@ namespace skch
                                                         //--for split read mapping
 
     offset_t splitMappingId;                            // To identify split mappings that are chained
-    int pickedAsBest;                                   // 1 if yes, -1 if no
-    SplitScore splitMapScore;                           // chain length, identity
-  };
+    int discard;                                        // set to 1 for deletion
 
+    offset_t qlen() const {                             //length of this mapping on query axis 
+      return queryEndPos - queryStartPos + 1;
+    }
+
+    offset_t rlen() const {                             //length of this mapping on reference axis 
+      return refEndPos - refStartPos + 1;
+    }
+  };
 
   typedef std::vector<MappingResult> MappingResultsVector_t;
 }

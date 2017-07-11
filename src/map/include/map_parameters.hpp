@@ -30,7 +30,7 @@ namespace skch
     std::vector<std::string> refSequences;            //reference sequence(s)
     std::vector<std::string> querySequences;          //query sequence(s)
     std::string outFileName;                          //output file name
-    bool reportAll;                                   //Report all alignments if this is true
+    int filterMode;                                   //filtering mode in mashmap
     bool split;                                       //Split read mapping (done if this is true)
   };
 }

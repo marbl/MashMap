@@ -52,10 +52,10 @@ namespace skch
 
     cmd.defineOption("window", "window size [default : computed using pvalue cutoff]\n\
 P-value is not considered if a window value is provided. Lower window size implies denser sketch", 
-        ArgvParser::OptionRequiresValue);
+                    ArgvParser::OptionRequiresValue);
     cmd.defineOptionAlternative("window","w");
 
-    cmd.defineOption("minMatchLen", "minimum match length [default : 5000]", ArgvParser::OptionRequiresValue);
+    cmd.defineOption("minMatchLen", "minimum match length [default : 10000]", ArgvParser::OptionRequiresValue);
     cmd.defineOptionAlternative("minMatchLen","m");
 
     cmd.defineOption("perc_identity", "threshold for identity [default : 85]", ArgvParser::OptionRequiresValue);
@@ -64,7 +64,12 @@ P-value is not considered if a window value is provided. Lower window size impli
     cmd.defineOption("protein", "set alphabet type to proteins, default is nucleotides");
     cmd.defineOptionAlternative("protein","a");
 
-    cmd.defineOption("all", "report all the mapping locations for a read, default is to consider few best ones");
+    cmd.defineOption("filter_mode", "filter modes in mashmap: 'map', 'dot' or 'none' [default: map]\n\
+'map' filters best mappings for each query sequence\n\
+'dot' filters best mappings first for query and then reference sequence\n\
+'none' disables filtering", 
+                    ArgvParser::OptionRequiresValue);
+    cmd.defineOptionAlternative("filter_mode", "f");
 
     cmd.defineOption("split", "enable split read mapping");
 
@@ -86,7 +91,7 @@ P-value is not considered if a window value is provided. Lower window size impli
 
       if (in.fail())
       {
-        std::cerr << "ERROR, skch::parseFileList, Could not open " << fileToRead << "\n";
+        std::cerr << "ERROR, skch::parseFileList, Could not open " << fileToRead << std::endl;
         exit(1);
       }
 
@@ -111,7 +116,7 @@ P-value is not considered if a window value is provided. Lower window size impli
 
         if (in.fail())
         {
-          std::cerr << "ERROR, skch::validateInputFiles, Could not open " << e << "\n";
+          std::cerr << "ERROR, skch::validateInputFiles, Could not open " << e << std::endl;
           exit(1);
         }
       }
@@ -122,7 +127,7 @@ P-value is not considered if a window value is provided. Lower window size impli
 
         if (in.fail())
         {
-          std::cerr << "ERROR, skch::validateInputFiles, Could not open " << e << "\n";
+          std::cerr << "ERROR, skch::validateInputFiles, Could not open " << e << std::endl;
           exit(1);
         }
       }
@@ -144,6 +149,7 @@ P-value is not considered if a window value is provided. Lower window size impli
     std::cout << "P-value = " << parameters.p_value << std::endl;
     std::cout << "Percentage identity threshold = " << parameters.percentageIdentity << std::endl;
     std::cout << "Mapping output file = " << parameters.outFileName << std::endl;
+    std::cout << "Filter mode = " << parameters.filterMode << " (1 = map, 2 = dot, 3 = none)" << std::endl;
     std::cout << ">>>>>>>>>>>>>>>>>>" << std::endl;
   }
 
@@ -161,17 +167,17 @@ P-value is not considered if a window value is provided. Lower window size impli
     //Make sure we get the right command line args
     if (result != ArgvParser::NoParserError)
     {
-      std::cout << cmd.parseErrorDescription(result) << "\n";
+      std::cerr << cmd.parseErrorDescription(result) << std::endl;
       exit(1);
     }
     else if (!cmd.foundOption("subject") && !cmd.foundOption("subjectList"))
     {
-      std::cout << "Provide reference file (s)\n";
+      std::cerr << "ERROR, skch::parseandSave, Provide reference file(s)" << std::endl;
       exit(1);
     }
     else if (!cmd.foundOption("query") && !cmd.foundOption("queryList"))
     {
-      std::cout << "Provide reference file (s)\n";
+      std::cerr << "ERROR, skch::parseandSave, Provide query file(s)" << std::endl;
       exit(1);
     }
 
@@ -230,12 +236,26 @@ P-value is not considered if a window value is provided. Lower window size impli
     else
       parameters.alphabetSize = 4;
 
-    if(cmd.foundOption("all"))
+    if(cmd.foundOption("filter_mode"))
     {
-      parameters.reportAll = true;
+      str << cmd.optionValue("filter_mode");
+
+      std::string filter_input;
+      str >> filter_input;
+
+      if (filter_input == "map") parameters.filterMode = filter::MAP;
+      else if (filter_input == "dot") parameters.filterMode = filter::DOT;
+      else if (filter_input == "none") parameters.filterMode = filter::NONE;
+      else 
+      {
+        std::cerr << "ERROR, skch::parseandSave, Invalid option given for filter_mode" << std::endl;
+        exit(1);
+      };
+
+      str.clear();
     }
     else
-      parameters.reportAll = false;
+      parameters.filterMode = filter::MAP;
 
     if(cmd.foundOption("split"))
     {
@@ -276,7 +296,7 @@ P-value is not considered if a window value is provided. Lower window size impli
       str.clear();
     }
     else
-      parameters.minMatchLength = 5000;
+      parameters.minMatchLength = 10000;
 
     if(cmd.foundOption("perc_identity"))
     {
