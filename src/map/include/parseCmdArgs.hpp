@@ -144,7 +144,7 @@ P-value is not considered if a window value is provided. Lower window size impli
     std::cout << "Query = " << parameters.querySequences << std::endl;
     std::cout << "Kmer size = " << parameters.kmerSize << std::endl;
     std::cout << "Window size = " << parameters.windowSize << std::endl;
-    std::cout << "Match length >= " << parameters.minMatchLength << (parameters.split ? " --split":"") << std::endl;
+    std::cout << "Minimum match length >= " << parameters.minMatchLength << (parameters.split ? " (read split allowed)":"") << std::endl;
     std::cout << "Alphabet = " << (parameters.alphabetSize == 4 ? "DNA" : "AA") << std::endl;
     std::cout << "P-value = " << parameters.p_value << std::endl;
     std::cout << "Percentage identity threshold = " << parameters.percentageIdentity << std::endl;
