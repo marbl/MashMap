@@ -151,7 +151,7 @@ namespace skch
         float jaccard = 1.0 * i/s;
         float d = j2md(jaccard, k);
 
-        float d_lower = md_lower_bound(d, s, k, 0.5);
+        float d_lower = md_lower_bound(d, s, k, 0.75);
 
         //Upper bound identity
         float id_upper = 100.0 * (1.0 - d_lower);

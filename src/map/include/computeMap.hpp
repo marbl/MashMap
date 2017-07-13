@@ -129,7 +129,7 @@ namespace skch
           while ((len = kseq_read(seq)) >= 0) 
           {
 
-            if (param.filterMode == filter::DOT)
+            if (param.filterMode == filter::ONETOONE)
               qmetadata.push_back( ContigInfo{seq->name.s, (offset_t) seq->seq.l} );
 
             //Is the read too short?
@@ -205,12 +205,12 @@ namespace skch
               if(param.split)
                 mergeMappings(readMappings);
 
-              if(param.filterMode == filter::MAP || param.filterMode == filter::DOT)
+              if(param.filterMode == filter::MAP || param.filterMode == filter::ONETOONE)
               {
                 skch::Filter::query::filterMappings(readMappings);
               }
 
-              if (param.filterMode == filter::DOT)
+              if (param.filterMode == filter::ONETOONE)
                 allReadMappings.insert(allReadMappings.end(), readMappings.begin(), readMappings.end()); //Save for another filtering round
               else
                 reportReadMappings(readMappings, seq, outstrm);   //Report mapping
@@ -227,7 +227,7 @@ namespace skch
         }
 
         //Filter over reference axis and report the mappings
-        if (param.filterMode == filter::DOT)
+        if (param.filterMode == filter::ONETOONE)
         {
           skch::Filter::ref::filterMappings(allReadMappings, this->refSketch);
           reportReadMappings(allReadMappings, outstrm);
@@ -420,7 +420,7 @@ namespace skch
             float mash_dist = Stat::j2md(1.0 * l2.sharedSketchSize/Q.sketchSize, param.kmerSize);
 
             //Compute lower bound to mash distance within 90% confidence interval
-            float mash_dist_lower_bound = Stat::md_lower_bound(mash_dist, Q.sketchSize, param.kmerSize, 0.5);
+            float mash_dist_lower_bound = Stat::md_lower_bound(mash_dist, Q.sketchSize, param.kmerSize, 0.75);
 
             float nucIdentity = 100 * (1 - mash_dist);
             float nucIdentityUpperBound = 100 * (1 - mash_dist_lower_bound);
@@ -708,7 +708,6 @@ namespace skch
             processMappingResults(e);
         }
       }
-
 
     public:
 

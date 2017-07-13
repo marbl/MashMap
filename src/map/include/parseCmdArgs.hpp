@@ -55,7 +55,8 @@ P-value is not considered if a window value is provided. Lower window size impli
                     ArgvParser::OptionRequiresValue);
     cmd.defineOptionAlternative("window","w");
 
-    cmd.defineOption("minMatchLen", "minimum match length [default : 10000]", ArgvParser::OptionRequiresValue);
+    cmd.defineOption("minMatchLen", "minimum match length [default : 10000]\n\
+reads shorter than minMatchLen will be ignored", ArgvParser::OptionRequiresValue);
     cmd.defineOptionAlternative("minMatchLen","m");
 
     cmd.defineOption("perc_identity", "threshold for identity [default : 85]", ArgvParser::OptionRequiresValue);
@@ -64,16 +65,16 @@ P-value is not considered if a window value is provided. Lower window size impli
     cmd.defineOption("protein", "set alphabet type to proteins, default is nucleotides");
     cmd.defineOptionAlternative("protein","a");
 
-    cmd.defineOption("filter_mode", "filter modes in mashmap: 'map', 'dot' or 'none' [default: map]\n\
-'map' filters best mappings for each query sequence\n\
-'dot' filters best mappings first for query and then reference sequence\n\
+    cmd.defineOption("filter_mode", "filter modes in mashmap: 'map', 'one-to-one' or 'none' [default: map]\n\
+'map' computes best mappings for each query sequence\n\
+'one-to-one' computes best mappings for query as well as reference sequence\n\
 'none' disables filtering", 
                     ArgvParser::OptionRequiresValue);
     cmd.defineOptionAlternative("filter_mode", "f");
 
-    cmd.defineOption("split", "enable split read mapping");
+    cmd.defineOption("split", "enable split read mapping [disabled by default]");
 
-    cmd.defineOption("output", "output file name", ArgvParser::OptionRequired | ArgvParser::OptionRequiresValue);
+    cmd.defineOption("output", "output file name (required)", ArgvParser::OptionRequired | ArgvParser::OptionRequiresValue);
     cmd.defineOptionAlternative("output","o");
   }
 
@@ -149,7 +150,7 @@ P-value is not considered if a window value is provided. Lower window size impli
     std::cout << "P-value = " << parameters.p_value << std::endl;
     std::cout << "Percentage identity threshold = " << parameters.percentageIdentity << std::endl;
     std::cout << "Mapping output file = " << parameters.outFileName << std::endl;
-    std::cout << "Filter mode = " << parameters.filterMode << " (1 = map, 2 = dot, 3 = none)" << std::endl;
+    std::cout << "Filter mode = " << parameters.filterMode << " (1 = map, 2 = one-to-one, 3 = none)" << std::endl;
     std::cout << ">>>>>>>>>>>>>>>>>>" << std::endl;
   }
 
@@ -244,7 +245,7 @@ P-value is not considered if a window value is provided. Lower window size impli
       str >> filter_input;
 
       if (filter_input == "map") parameters.filterMode = filter::MAP;
-      else if (filter_input == "dot") parameters.filterMode = filter::DOT;
+      else if (filter_input == "one-to-one") parameters.filterMode = filter::ONETOONE;
       else if (filter_input == "none") parameters.filterMode = filter::NONE;
       else 
       {

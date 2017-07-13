@@ -89,7 +89,7 @@ namespace skch
   enum filter : int
   {
     MAP = 1,                              //filter by query axis
-    DOT = 2,                              //filter by query axis and reference axis
+    ONETOONE = 2,                         //filter by query axis and reference axis
     NONE = 3                              //no filtering
   };
 
