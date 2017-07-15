@@ -34,7 +34,7 @@ namespace skch
     /**
      * @brief   reverse complement of kmer (borrowed from mash)
      */
-    inline void reverseComplement(const char * src, char * dest, int length) 
+    inline void reverseComplement(const char* src, char* dest, int length) 
     {
       for ( int i = 0; i < length; i++ )
       {    
@@ -53,22 +53,26 @@ namespace skch
       }    
     }
 
-    template <typename KSEQ>
-      inline void makeUpperCase(KSEQ *seq)
+    /**
+     * @brief               convert DNA or AA alphabets to upper case
+     * @param[in]   seq     pointer to input sequence
+     * @param[in]   len     length of input sequence
+     */
+    inline void makeUpperCase(char* seq, offset_t len)
+    {
+      for ( int i = 0; i < len; i++ )
       {
-        for ( int i = 0; i < seq->seq.l; i++ )
+        if (seq[i] > 96 && seq[i] < 123)
         {
-          if (seq->seq.s[i] > 96 && seq->seq.s[i] < 123)
-          {
-            seq->seq.s[i] -= 32;
-          }
+          seq[i] -= 32;
         }
       }
+    }
 
     /**
      * @brief   hashing kmer string (borrowed from mash)
      */
-    inline hash_t getHash(const char * seq, int length)
+    inline hash_t getHash(const char* seq, int length)
     {
       char data[16];
       MurmurHash3_x64_128(seq, length, seed, data);
@@ -83,13 +87,16 @@ namespace skch
     /**
      * @brief       compute winnowed minimizers from a given sequence and add to the index
      * @param[out]  minimizerIndex  minimizer table storing minimizers and their position as we compute them
-     * @param[in]   seq             kseq fasta/q parser
+     * @param[in]   seq             pointer to input sequence
+     * @param[in]   len             length of input sequence
      * @param[in]   kmerSize
      * @param[in]   windowSize
      * @param[in]   seqCounter      current sequence number, used while saving the position of minimizer
      */
-    template <typename T, typename KSEQ>
-      inline void addMinimizers(std::vector<T> &minimizerIndex, KSEQ *seq, int kmerSize, 
+    template <typename T>
+      inline void addMinimizers(std::vector<T> &minimizerIndex, 
+          char* seq, offset_t len,
+          int kmerSize, 
           int windowSize,
           int alphabetSize,
           seqno_t seqCounter)
@@ -101,16 +108,13 @@ namespace skch
          */
         std::deque< std::pair<MinimizerInfo, offset_t> > Q;
 
-        makeUpperCase(seq);
-
-        //length of the sequencd
-        offset_t len = seq->seq.l;
+        makeUpperCase(seq, len);
 
         //Compute reverse complement of seq
-        char *seqRev = new char[len];
+        char* seqRev = new char[len];
 
         if(alphabetSize == 4) //not protein
-          CommonFunc::reverseComplement(seq->seq.s, seqRev, len);
+          CommonFunc::reverseComplement(seq, seqRev, len);
 
         for(offset_t i = 0; i < len - kmerSize + 1; i++)
         {
@@ -119,7 +123,7 @@ namespace skch
           offset_t currentWindowId = i - windowSize + 1;
 
           //Hash kmers
-          hash_t hashFwd = CommonFunc::getHash(seq->seq.s + i, kmerSize); 
+          hash_t hashFwd = CommonFunc::getHash(seq + i, kmerSize); 
           hash_t hashBwd;
 
           if(alphabetSize == 4)
@@ -167,21 +171,10 @@ namespace skch
         }
 
 #ifdef DEBUG
-        std::cout << "INFO, skch::CommonFunc::addMinimizers, inserted minimizers for " << seq->name.s << "\n";
+        std::cout << "INFO, skch::CommonFunc::addMinimizers, inserted minimizers for sequence id = " << seqCounter << "\n";
 #endif
 
         delete [] seqRev;
-      }
-
-    /**
-     * @brief       overloaded function for case where seq. counter does not matter
-     */
-    template <typename T, typename KSEQ>
-      inline void addMinimizers(std::vector<T> &minimizerIndex, KSEQ *seq, int kmerSize,
-          int windowSize, 
-          int alphabetSize)
-      {
-        addMinimizers(minimizerIndex, seq, kmerSize, windowSize, alphabetSize, 0);
       }
 
    /**

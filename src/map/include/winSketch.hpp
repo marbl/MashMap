@@ -154,7 +154,7 @@ namespace skch
             }
             else
             {
-              skch::CommonFunc::addMinimizers(this->minimizerIndex, seq, param.kmerSize, param.windowSize, param.alphabetSize, seqCounter);
+              skch::CommonFunc::addMinimizers(this->minimizerIndex, seq->seq.s, seq->seq.l, param.kmerSize, param.windowSize, param.alphabetSize, seqCounter);
             }
 
             seqCounter++;

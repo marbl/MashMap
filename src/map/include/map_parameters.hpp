@@ -27,10 +27,11 @@ namespace skch
     uint64_t referenceSize;                           //Approximate reference size
     float percentageIdentity;                         //user defined threshold for good similarity
     double p_value;                                   //user defined threshold for p value
+    int filterMode;                                   //filtering mode in mashmap
+    int threads;                                      //execution thread count
     std::vector<std::string> refSequences;            //reference sequence(s)
     std::vector<std::string> querySequences;          //query sequence(s)
     std::string outFileName;                          //output file name
-    int filterMode;                                   //filtering mode in mashmap
     bool split;                                       //Split read mapping (done if this is true)
   };
 }

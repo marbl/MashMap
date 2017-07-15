@@ -28,7 +28,12 @@ namespace skch
    */
   void initCmdParser(CommandLineProcessing::ArgvParser &cmd)
   {
-    cmd.setIntroductoryDescription("Approximate read mapper based on Jaccard similarity");
+    cmd.setIntroductoryDescription("-----------------\n\
+Mashmap is an approximate long read mapper based on Jaccard similarity\n\
+-----------------\n\
+Example usage: \n\
+$ mashmap -s ref.fa -q long_reads.fq [OPTIONS]\n\
+$ mashmap --sl reference_files_list.txt -q long_reads.fq [OPTIONS]");
 
     cmd.setHelpOption("h", "help", "Print this help page");
 
@@ -44,26 +49,23 @@ namespace skch
     cmd.defineOption("queryList", "a file containing list of query files, one per line", ArgvParser::OptionRequiresValue);
     cmd.defineOptionAlternative("queryList","ql");
 
-    cmd.defineOption("kmer", "kmer size <= 16 [default 16 (DNA), 5 (AA)]", ArgvParser::OptionRequiresValue);
-    cmd.defineOptionAlternative("kmer","k");
-
-    cmd.defineOption("pval", "p-value cutoff, used to determine window/sketch sizes [default e-03]", ArgvParser::OptionRequiresValue);
-    cmd.defineOptionAlternative("pval","p");
-
-    cmd.defineOption("window", "window size [default : computed using pvalue cutoff]\n\
-P-value is not considered if a window value is provided. Lower window size implies denser sketch", 
-                    ArgvParser::OptionRequiresValue);
-    cmd.defineOptionAlternative("window","w");
-
-    cmd.defineOption("minMatchLen", "minimum match length [default : 10000]\n\
+    cmd.defineOption("minMatchLen", "minimum match length to compute [default : 10,000]\n\
 reads shorter than minMatchLen will be ignored", ArgvParser::OptionRequiresValue);
     cmd.defineOptionAlternative("minMatchLen","m");
+
+    cmd.defineOption("split", "enable split read mapping [disabled by default]");
 
     cmd.defineOption("perc_identity", "threshold for identity [default : 85]", ArgvParser::OptionRequiresValue);
     cmd.defineOptionAlternative("perc_identity","pi");
 
-    cmd.defineOption("protein", "set alphabet type to proteins, default is nucleotides");
-    cmd.defineOptionAlternative("protein","a");
+    cmd.defineOption("threads", "count of threads for parallel execution [default : 1]", ArgvParser::OptionRequiresValue);
+    cmd.defineOptionAlternative("threads","t");
+
+    cmd.defineOption("output", "output file name [default : mashmap.out]", ArgvParser::OptionRequiresValue);
+    cmd.defineOptionAlternative("output","o");
+
+    cmd.defineOption("kmer", "kmer size <= 16 [default : 16]", ArgvParser::OptionRequiresValue);
+    cmd.defineOptionAlternative("kmer","k");
 
     cmd.defineOption("filter_mode", "filter modes in mashmap: 'map', 'one-to-one' or 'none' [default: map]\n\
 'map' computes best mappings for each query sequence\n\
@@ -71,11 +73,6 @@ reads shorter than minMatchLen will be ignored", ArgvParser::OptionRequiresValue
 'none' disables filtering", 
                     ArgvParser::OptionRequiresValue);
     cmd.defineOptionAlternative("filter_mode", "f");
-
-    cmd.defineOption("split", "enable split read mapping [disabled by default]");
-
-    cmd.defineOption("output", "output file name (required)", ArgvParser::OptionRequired | ArgvParser::OptionRequiresValue);
-    cmd.defineOptionAlternative("output","o");
   }
 
   /**
@@ -230,12 +227,9 @@ reads shorter than minMatchLen will be ignored", ArgvParser::OptionRequiresValue
 
     str.clear();
 
-    if(cmd.foundOption("protein"))
-    {
-      parameters.alphabetSize = 20;
-    }
-    else
-      parameters.alphabetSize = 4;
+    parameters.alphabetSize = 4;
+    //Do not expose the option to set protein alphabet in mashmap
+    //parameters.alphabetSize = 20;
 
     if(cmd.foundOption("filter_mode"))
     {
@@ -281,14 +275,7 @@ reads shorter than minMatchLen will be ignored", ArgvParser::OptionRequiresValue
         parameters.kmerSize = 5;
     }
 
-    if(cmd.foundOption("pval"))
-    {
-      str << cmd.optionValue("pval");
-      str >> parameters.p_value;
-      str.clear();
-    }
-    else
-      parameters.p_value = 1e-03;
+    parameters.p_value = 1e-03;
 
     if(cmd.foundOption("minMatchLen"))
     {
@@ -308,38 +295,35 @@ reads shorter than minMatchLen will be ignored", ArgvParser::OptionRequiresValue
     else
       parameters.percentageIdentity = 85;
 
+    if(cmd.foundOption("threads"))
+    {
+      str << cmd.optionValue("threads");
+      str >> parameters.threads;
+      str.clear();
+    }
+    else
+      parameters.threads = 1;
+
     /*
      * Compute window size for sketching
      */
 
-    if(cmd.foundOption("window"))
+    //Compute optimal window size
+    parameters.windowSize = skch::Stat::recommendedWindowSize(parameters.p_value,
+        parameters.kmerSize, parameters.alphabetSize,
+        parameters.percentageIdentity,
+        parameters.minMatchLength, parameters.referenceSize,
+        parameters.split);
+
+    if(cmd.foundOption("output"))
     {
-      str << cmd.optionValue("window");
-      str >> parameters.windowSize;
+      str << cmd.optionValue("output");
+      str >> parameters.outFileName;
       str.clear();
-
-      //Re-estimate p value
-      
-      int lengthQuery = parameters.split ? parameters.minMatchLength/2 : parameters.minMatchLength;
-
-      int s = lengthQuery * 2 / parameters.windowSize; 
-      parameters.p_value = skch::Stat::estimate_pvalue (s, parameters.kmerSize, parameters.alphabetSize, 
-          parameters.percentageIdentity, 
-          lengthQuery, parameters.referenceSize);
     }
     else
-    {
-      //Compute optimal window size
-      parameters.windowSize = skch::Stat::recommendedWindowSize(parameters.p_value,
-          parameters.kmerSize, parameters.alphabetSize,
-          parameters.percentageIdentity,
-          parameters.minMatchLength, parameters.referenceSize,
-          parameters.split);
-    }
+      parameters.outFileName = "mashmap.out";
 
-    str << cmd.optionValue("output");
-    str >> parameters.outFileName;
-    str.clear();
 
     printCmdOptions(parameters);
 
