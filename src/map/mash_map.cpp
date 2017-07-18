@@ -8,6 +8,7 @@
 #include <ctime>
 #include <chrono>
 #include <functional>
+#include <omp.h>
 
 //Own includes
 #include "map/include/map_parameters.hpp"
@@ -30,6 +31,8 @@ int main(int argc, char** argv)
   skch::Parameters parameters;        //sketching and mapping parameters
 
   skch::parseandSave(argc, argv, cmd, parameters);   
+
+  omp_set_num_threads(parameters.threads);
 
   auto t0 = skch::Time::now();
 

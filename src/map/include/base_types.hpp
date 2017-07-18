@@ -129,31 +129,37 @@ namespace skch
   //Input type of map function
   struct MapModuleInput
   {
+    seqno_t seqCounter;                 //query sequence counter
+    offset_t qlen;                      //query sequence length             
+    std::string qseq;                   //query sequence string
+    std::string qseqName;               //query sequence id
+
     /*
-     * @brief               constructor
+     * @brief               initialize values
      * @param[in] kseq_seq  complete read sequence
      * @param[in] kseq_id   read id string
      * @param[in] qlen      length of read
      */
-    MapModuleInput (const char * kseq_seq, const char * kseq_id, offset_t qlen, seqno_t seqcount)
+    void init (const char * kseq_seq, const char * kseq_id, offset_t qlen, seqno_t seqcount)
     {
       this->qseq = std::string{kseq_seq, std::size_t(qlen)};
       this->qseqName = std::string{kseq_id};
       this->qlen = qlen;
       this->seqCounter = seqcount; 
     }
-
-    seqno_t seqCounter;                 //query sequence counter
-    offset_t qlen;                      //query sequence length             
-    std::string qseq;                   //query sequence string
-    std::string qseqName;               //query sequence id
   };
 
   //Output type of map function
   struct MapModuleOutput
   {
     MappingResultsVector_t readMappings;  //read mapping coordinates
-    std::string qseqName;                 //read name, needed for output format requirment
+    std::string qseqName;                 //query sequence id
+
+    //Function to erase all output mappings
+    void reset()
+    {
+      this->readMappings.clear();
+    }
   };
 
   //Information about fragment sequence during L1/L2 mapping

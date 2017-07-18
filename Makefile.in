@@ -1,4 +1,4 @@
-CXXFLAGS += -O3 -DNDEBUG -std=c++11 -Isrc -I @mathinc@
+CXXFLAGS += -O3 -DNDEBUG -fopenmp -std=c++11 -Isrc -I @mathinc@
 CPPFLAGS += @amcppflags@
 
 UNAME_S=$(shell uname -s)
@@ -17,7 +17,7 @@ OBJECTS=$(SOURCES:.cpp=.o)
 all : mashmap
 
 mashmap : $(OBJECTS) 
-	$(CXX) $(CXXFLAGS) $(CPPFLAGS) $(OBJECTS) -o mashmap @mathlib@ -lstdc++ -lz -lm -lpthread 
+	$(CXX) $(CXXFLAGS) $(CPPFLAGS) $(OBJECTS) -o mashmap @mathlib@ -lstdc++ -lz -lm  
 
 .SUFFIXES :
 

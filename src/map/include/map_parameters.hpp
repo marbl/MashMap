@@ -8,10 +8,6 @@
 
 #include <vector>
 
-//Switch to enable timing of L1 and L2 stages for each read
-//Timings are reported in a file
-#define ENABLE_TIME_PROFILE_L1_L2 0
-
 namespace skch
 {
   /**
