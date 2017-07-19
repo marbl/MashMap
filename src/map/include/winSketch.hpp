@@ -107,8 +107,8 @@ namespace skch
     Sketch(const skch::Parameters &p) 
       :
         param(p) {
-          //Keep the size of input buffer 128 times thread count
-          this->inputBufferSize = 128 * param.threads;
+          //Keep the size of input buffer = thread count
+          this->inputBufferSize = param.threads;
 
           this->build();
           this->index();
