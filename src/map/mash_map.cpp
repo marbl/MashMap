@@ -22,6 +22,12 @@
 
 int main(int argc, char** argv)
 {
+  /*
+   * Unset env variable MALLOC_ARENA_MAX to avoid bad environment for openmp
+   */
+
+  unsetenv((char *)"MALLOC_ARENA_MAX");
+
   CommandLineProcessing::ArgvParser cmd;
 
   //Setup command line options

@@ -79,8 +79,8 @@ namespace skch
       //used only if one-to-one filtering is ON
       std::vector<ContigInfo> qmetadata; 
 
-      //Count of reads to parse before processing in parallel
-      int bufferSize;
+      //Count of sequences to parse before processing in parallel
+      int inputBufferSize;
 
     public:
 
@@ -97,7 +97,7 @@ namespace skch
         processMappingResults(f)
     {
       //Keep the size of input buffer 128 times thread count
-      bufferSize = 128 * param.threads;
+      inputBufferSize = 128 * param.threads;
 
       this->mapQuery();
     }
@@ -119,8 +119,10 @@ namespace skch
         MappingResultsVector_t allReadMappings;  //Aggregate mapping results for the complete run
 
 
-        std::vector<MapModuleInput> inputBuffer(this->bufferSize);
-        std::vector<MapModuleOutput> outputBuffer(this->bufferSize);
+        //Allocate input and output buffers
+        std::vector<InputSeqContainer> inputBuffer(this->inputBufferSize);
+        std::vector<MapModuleOutput> outputBuffer(param.threads);
+
         int pendingWorkItems = 0;
 
         for(const auto &fileName : param.querySequences)
@@ -162,7 +164,7 @@ namespace skch
               pendingWorkItems++;
 
               //If buffer size is full, process the work
-              if(pendingWorkItems == this->bufferSize)
+              if(pendingWorkItems == this->inputBufferSize)
               {
                 this->processMappingWorkInParallel(pendingWorkItems, inputBuffer, outputBuffer,
                     allReadMappings, totalReadsMapped, outstrm);
@@ -180,6 +182,7 @@ namespace skch
           gzclose(fp);  
         }
 
+        //Process remaining work
         this->processMappingWorkInParallel(pendingWorkItems, inputBuffer, outputBuffer,
             allReadMappings, totalReadsMapped, outstrm);
 
@@ -198,7 +201,7 @@ namespace skch
        * @brief                           schedule mapping tasks and output handling inside openmp runtime system
        * @param[in]   pendingWorkItems    count of input tasks
        * @param[in]   inputBuffer         query sequences
-       * @param[in]   outputBuffer        container for saving output mappings
+       * @param[in]   outputBuffer        temporary container for threads to save output mappings
        * @param[in]   allReadMappings     container for saving all mappings (optional use depending on filter)
        * @param[in]   totalReadsMapped    counter to track count of reads mapped
        * @param[in]   outstrm             outstream stream object 
@@ -207,16 +210,18 @@ namespace skch
         void processMappingWorkInParallel(int pendingWorkItems, Vec1 &inputBuffer, Vec2 &outputBuffer,
             Vec3 &allReadMappings, seqno_t &totalReadsMapped, std::ofstream &outstrm)
         {
-#pragma omp parallel for 
+#pragma omp parallel for schedule(dynamic, 16) 
           for(int i=0; i < pendingWorkItems; i++)
           {
-            this->mapModule(inputBuffer[i], outputBuffer[i]);
+            //obtain thread number
+            auto tid = omp_get_thread_num();
+
+            this->mapModule(inputBuffer[i], outputBuffer[tid]);
 
 #pragma omp critical
-            this->mapModuleHandleOutput(outputBuffer[i], allReadMappings, totalReadsMapped, outstrm);
+            this->mapModuleHandleOutput(outputBuffer[tid], allReadMappings, totalReadsMapped, outstrm);
 
-            //Clear the output container
-            outputBuffer[i].reset();
+            outputBuffer[tid].reset();
           }
         }
 
@@ -226,16 +231,16 @@ namespace skch
        * @param[in]   input   input read details
        * @param[out]  output  output object containing the mappings
        */
-      void mapModule (MapModuleInput &input, MapModuleOutput &output)
+      void mapModule (InputSeqContainer &input, MapModuleOutput &output)
       {
         //save query sequence name
-        output.qseqName = input.qseqName;
+        output.qseqName = input.seqName;
 
         if(! param.split)   
         {
           QueryMetaData <MinVec_Type> Q;
-          Q.seq = &(input.qseq)[0u];
-          Q.len = input.qlen;
+          Q.seq = &(input.seq)[0u];
+          Q.len = input.len;
           Q.seqCounter = input.seqCounter;
 
           MappingResultsVector_t l2Mappings;   
@@ -247,7 +252,7 @@ namespace skch
         }
         else  //Split read mapping
         {
-          int fragmentCount = input.qlen / (param.minMatchLength/2);
+          int fragmentCount = input.len / (param.minMatchLength/2);
           bool mappingReported = false;
 
           //Map individual short fragments in the read
@@ -255,7 +260,7 @@ namespace skch
           {
             //Prepare fragment sequence object 
             QueryMetaData <MinVec_Type> Q;
-            Q.seq = &(input.qseq)[0u] + i * (param.minMatchLength/2);
+            Q.seq = &(input.seq)[0u] + i * (param.minMatchLength/2);
             Q.len = (param.minMatchLength/2);
             Q.seqCounter = input.seqCounter;
 
@@ -266,7 +271,7 @@ namespace skch
 
             //Adjust query coordinates and length in the reported mapping
             std::for_each(l2Mappings.begin(), l2Mappings.end(), [&](MappingResult &e){ 
-                e.queryLen = input.qlen;
+                e.queryLen = input.len;
                 e.queryStartPos = i * (param.minMatchLength/2);
                 e.queryEndPos = i * (param.minMatchLength/2) + Q.len - 1;
                 });

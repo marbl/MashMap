@@ -126,25 +126,25 @@ namespace skch
 
   typedef std::vector<MappingResult> MappingResultsVector_t;
 
-  //Input type of map function
-  struct MapModuleInput
+  //Container to save copy of kseq object
+  struct InputSeqContainer
   {
-    seqno_t seqCounter;                 //query sequence counter
-    offset_t qlen;                      //query sequence length             
-    std::string qseq;                   //query sequence string
-    std::string qseqName;               //query sequence id
+    seqno_t seqCounter;                 //sequence counter
+    offset_t len;                       //sequence length             
+    std::string seq;                    //sequence string
+    std::string seqName;                //sequence id
 
     /*
      * @brief               initialize values
-     * @param[in] kseq_seq  complete read sequence
-     * @param[in] kseq_id   read id string
-     * @param[in] qlen      length of read
+     * @param[in] kseq_seq  complete read or reference sequence
+     * @param[in] kseq_id   sequence id name
+     * @param[in] len       length of sequence
      */
-    void init (const char * kseq_seq, const char * kseq_id, offset_t qlen, seqno_t seqcount)
+    void init (const char * kseq_seq, const char * kseq_id, offset_t len, seqno_t seqcount)
     {
-      this->qseq = std::string{kseq_seq, std::size_t(qlen)};
-      this->qseqName = std::string{kseq_id};
-      this->qlen = qlen;
+      this->seq = std::string{kseq_seq, std::size_t(len)};
+      this->seqName = std::string{kseq_id};
+      this->len = len;
       this->seqCounter = seqcount; 
     }
   };
