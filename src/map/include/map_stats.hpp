@@ -219,7 +219,7 @@ namespace skch
      * @param[in] k                 kmer size
      * @param[in] alphabetSize      alphabet size
      * @param[in] identity          mapping identity cut-off
-     * @param[in] minMatchLength    minimum sequence match length
+     * @param[in] minAlignLen       minimum sequence alignment length to compute
      * @param[in] lengthReference   reference length
      * @param[in] split             boolean input for split read mapping
      * @return                      optimal window size for sketching
@@ -227,14 +227,14 @@ namespace skch
     inline int recommendedWindowSize(double pValue_cutoff,
         int k, int alphabetSize,
         float identity,
-        int minMatchLength, uint64_t lengthReference,
+        int minAlignLen, uint64_t lengthReference,
         bool split)
     {
-      int lengthQuery = minMatchLength;
+      int lengthQuery = minAlignLen;
 
-      //fragments are half minMatchLength if split read mapping is enabled 
+      //fragments are half minAlignLen if split read mapping is enabled 
       if(split)
-        lengthQuery = minMatchLength/2;  
+        lengthQuery = minAlignLen/2;  
 
       //Push all the sketch values that we should try out in a vector
       //{1, 2, 5, 10, 20, 30...}

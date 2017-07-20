@@ -8,7 +8,6 @@
 #include <ctime>
 #include <chrono>
 #include <functional>
-#include <omp.h>
 
 //Own includes
 #include "map/include/map_parameters.hpp"
@@ -23,9 +22,9 @@
 int main(int argc, char** argv)
 {
   /*
-   * Unset env variable MALLOC_ARENA_MAX to avoid bad environment for openmp
+   * Make sure env variable MALLOC_ARENA_MAX is unset 
+   * for efficient multi-thread execution
    */
-
   unsetenv((char *)"MALLOC_ARENA_MAX");
 
   CommandLineProcessing::ArgvParser cmd;
@@ -38,15 +37,13 @@ int main(int argc, char** argv)
 
   skch::parseandSave(argc, argv, cmd, parameters);   
 
-  omp_set_num_threads(parameters.threads);
-
   auto t0 = skch::Time::now();
 
   //Build the sketch for reference
   skch::Sketch referSketch(parameters);
 
   std::chrono::duration<double> timeRefSketch = skch::Time::now() - t0;
-  std::cout << "INFO, skch::main, Time spent sketching the reference : " << timeRefSketch.count() << " sec" << std::endl;
+  std::cout << "INFO, skch::main, Time spent computing the reference index: " << timeRefSketch.count() << " sec" << std::endl;
 
   //Map the sequences in query file
   t0 = skch::Time::now();

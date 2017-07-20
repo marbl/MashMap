@@ -18,7 +18,7 @@ namespace skch
   {
     int kmerSize;                                     //kmer size for sketching
     int windowSize;                                   //window size used for sketching 
-    int minMatchLength;                               //minimum match length which mashmap should guarantee
+    int minAlignLen;                                  //minimum alignment length which mashmap should guarantee to report
     int alphabetSize;                                 //alphabet size
     uint64_t referenceSize;                           //Approximate reference size
     float percentageIdentity;                         //user defined threshold for good similarity

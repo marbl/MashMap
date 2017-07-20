@@ -135,12 +135,12 @@ namespace skch
     std::string seqName;                //sequence id
 
     /*
-     * @brief               initialize values
+     * @brief               constructor
      * @param[in] kseq_seq  complete read or reference sequence
      * @param[in] kseq_id   sequence id name
      * @param[in] len       length of sequence
      */
-    void init (const char * kseq_seq, const char * kseq_id, offset_t len, seqno_t seqcount)
+    InputSeqContainer(const char * kseq_seq, const char * kseq_id, offset_t len, seqno_t seqcount)
     {
       this->seq = std::string{kseq_seq, std::size_t(len)};
       this->seqName = std::string{kseq_id};

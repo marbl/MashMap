@@ -49,9 +49,9 @@ $ mashmap --sl reference_files_list.txt -q long_reads.fq [OPTIONS]");
     cmd.defineOption("queryList", "a file containing list of query files, one per line", ArgvParser::OptionRequiresValue);
     cmd.defineOptionAlternative("queryList","ql");
 
-    cmd.defineOption("minMatchLen", "minimum match length to compute [default : 10,000]\n\
-reads shorter than minMatchLen will be ignored", ArgvParser::OptionRequiresValue);
-    cmd.defineOptionAlternative("minMatchLen","m");
+    cmd.defineOption("minAlignLen", "minimum alignment length to compute [default : 10,000]\n\
+reads shorter than minAlignLen will be ignored", ArgvParser::OptionRequiresValue);
+    cmd.defineOptionAlternative("minAlignLen","m");
 
     cmd.defineOption("split", "enable split read mapping [disabled by default]");
 
@@ -142,7 +142,7 @@ reads shorter than minMatchLen will be ignored", ArgvParser::OptionRequiresValue
     std::cout << "Query = " << parameters.querySequences << std::endl;
     std::cout << "Kmer size = " << parameters.kmerSize << std::endl;
     std::cout << "Window size = " << parameters.windowSize << std::endl;
-    std::cout << "Minimum match length >= " << parameters.minMatchLength << (parameters.split ? " (read split allowed)":"") << std::endl;
+    std::cout << "Minimum alignment length >= " << parameters.minAlignLen << (parameters.split ? " (read split allowed)":"") << std::endl;
     std::cout << "Alphabet = " << (parameters.alphabetSize == 4 ? "DNA" : "AA") << std::endl;
     std::cout << "P-value = " << parameters.p_value << std::endl;
     std::cout << "Percentage identity threshold = " << parameters.percentageIdentity << std::endl;
@@ -277,14 +277,14 @@ reads shorter than minMatchLen will be ignored", ArgvParser::OptionRequiresValue
 
     parameters.p_value = 1e-03;
 
-    if(cmd.foundOption("minMatchLen"))
+    if(cmd.foundOption("minAlignLen"))
     {
-      str << cmd.optionValue("minMatchLen");
-      str >> parameters.minMatchLength;
+      str << cmd.optionValue("minAlignLen");
+      str >> parameters.minAlignLen;
       str.clear();
     }
     else
-      parameters.minMatchLength = 10000;
+      parameters.minAlignLen = 10000;
 
     if(cmd.foundOption("perc_identity"))
     {
@@ -312,7 +312,7 @@ reads shorter than minMatchLen will be ignored", ArgvParser::OptionRequiresValue
     parameters.windowSize = skch::Stat::recommendedWindowSize(parameters.p_value,
         parameters.kmerSize, parameters.alphabetSize,
         parameters.percentageIdentity,
-        parameters.minMatchLength, parameters.referenceSize,
+        parameters.minAlignLen, parameters.referenceSize,
         parameters.split);
 
     if(cmd.foundOption("output"))
