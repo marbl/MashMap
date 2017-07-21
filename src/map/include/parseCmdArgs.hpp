@@ -144,7 +144,6 @@ reads shorter than minAlignLen will be ignored", ArgvParser::OptionRequiresValue
     std::cout << "Window size = " << parameters.windowSize << std::endl;
     std::cout << "Minimum alignment length >= " << parameters.minAlignLen << (parameters.split ? " (read split allowed)":"") << std::endl;
     std::cout << "Alphabet = " << (parameters.alphabetSize == 4 ? "DNA" : "AA") << std::endl;
-    std::cout << "P-value = " << parameters.p_value << std::endl;
     std::cout << "Percentage identity threshold = " << parameters.percentageIdentity << std::endl;
     std::cout << "Mapping output file = " << parameters.outFileName << std::endl;
     std::cout << "Filter mode = " << parameters.filterMode << " (1 = map, 2 = one-to-one, 3 = none)" << std::endl;
@@ -275,8 +274,6 @@ reads shorter than minAlignLen will be ignored", ArgvParser::OptionRequiresValue
         parameters.kmerSize = 5;
     }
 
-    parameters.p_value = 1e-03;
-
     if(cmd.foundOption("minAlignLen"))
     {
       str << cmd.optionValue("minAlignLen");
@@ -309,7 +306,7 @@ reads shorter than minAlignLen will be ignored", ArgvParser::OptionRequiresValue
      */
 
     //Compute optimal window size
-    parameters.windowSize = skch::Stat::recommendedWindowSize(parameters.p_value,
+    parameters.windowSize = skch::Stat::recommendedWindowSize(skch::fixed::pval_cutoff,
         parameters.kmerSize, parameters.alphabetSize,
         parameters.percentageIdentity,
         parameters.minAlignLen, parameters.referenceSize,

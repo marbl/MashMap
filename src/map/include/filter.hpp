@@ -43,7 +43,7 @@ namespace skch
 
       //comparable (query axis)
       static bool comparable_q(const MappingResult& x, const MappingResult& best) {
-        return x.qlen() * x.nucIdentity >= 0.99 * best.qlen() * best.nucIdentity;
+        return x.qlen() * x.nucIdentity >= skch::fixed::filter_score_best_range * best.qlen() * best.nucIdentity;
       }
 
       //Lexicographical less than comparison based on mapping length (on reference axis) and identity
@@ -57,7 +57,7 @@ namespace skch
 
       //comparable (reference axis)
       static bool comparable_r(const MappingResult& x, const MappingResult& best) {
-        return x.rlen() * x.nucIdentity >= 0.99 * best.rlen() * best.nucIdentity;
+        return x.rlen() * x.nucIdentity >= skch::fixed::filter_score_best_range * best.rlen() * best.nucIdentity;
       }
 
     };
@@ -177,7 +177,7 @@ namespace skch
                   return MapScoreCmp::comparable_q(readMappings[i], readMappings[mappingIndexWithBestScore]);
                   });
 
-              if(num_good_mappings <= 25)
+              if(num_good_mappings <= skch::fixed::max_best_mappings_per_position)
               {
                 //Unmark the discard flag of good mappings (so that we don't delete them later)
                 std::for_each(mappingSubset.begin(), mappingSubset.end(), [&](uint64_t i) { 
@@ -244,7 +244,7 @@ namespace skch
           //Apply the main filtering algorithm to ensure best mappings across complete axis
           liFilterAlgorithm(readMappings);
         }
-    }
+    } //End of query namespace
 
     /**
      * @namespace skch::filter::ref
@@ -393,7 +393,7 @@ namespace skch
                   return MapScoreCmp::comparable_r(readMappings[i], readMappings[mappingIndexWithBestScore]);
                   });
 
-              if(num_good_mappings <= 25)
+              if(num_good_mappings <= skch::fixed::max_best_mappings_per_position)
               {
                 //Unmark the discard flag of good mappings (so that we don't delete them later)
                 std::for_each(mappingSubset.begin(), mappingSubset.end(), [&](uint64_t i) { 
@@ -461,7 +461,7 @@ namespace skch
           //Apply the main filtering algorithm to ensure best mappings across complete axis
           liFilterAlgorithm(readMappings, refsketch);
         }
-    }
+    } //End of ref namespace
 
   }
 }
