@@ -32,7 +32,7 @@ For most of the use cases, default values should be appropriate. However, differ
 
 * Identity threshold (--perc_identity, --pi) : By default, its set to 85, implying read mappings with 85% identity should be reported. It can be set to 80% to account for more noisy read datasets.
 
-* Minimum read length (-m, --minMatchLength) :  Default is 10,000 bp. This is set to 10K as the current average read lengths for both ONT and PacBio are >10K. Reads below this length are ignored.
+* Minimum alignment length (-m, --minAlignLen) :  Default is 10,000 bp. This is set to 10K by default. Reads below this length are ignored.
 
 * Protein sequences (-a, --protein) : Use this parameter when mapping protein sequences. MashMap adjusts alphabet and k-mer size accordingly.
 
