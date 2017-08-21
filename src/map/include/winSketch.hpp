@@ -295,6 +295,16 @@ namespace skch
       }
 
       /**
+       * @brief                 check if iterator points to index end
+       * @param[in]   iterator
+       * @return                boolean value
+       */
+      bool isMinimizerIndexEnd(const MIIter_t &it) const
+      {
+        return it == this->minimizerIndex.end();
+      }
+
+      /**
        * @brief     Return end iterator on minimizerIndex
        */
       MIIter_t getMinimizerIndexEnd() const

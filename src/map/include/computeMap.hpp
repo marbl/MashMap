@@ -175,7 +175,8 @@ namespace skch
         if (param.filterMode == filter::ONETOONE)
         {
           skch::Filter::ref::filterMappings(allReadMappings, this->refSketch);
-          reportReadMappings(allReadMappings, outstrm);
+
+          reportReadMappings(allReadMappings, "", outstrm);
         }
 
         std::cout << "INFO, skch::Map::mapQuery, [count of mapped reads, reads qualified for mapping, total input reads] = [" << totalReadsMapped << ", " << totalReadsPickedForMapping << ", " << seqCounter << "]" << std::endl;
@@ -247,6 +248,10 @@ namespace skch
           skch::Filter::query::filterMappings(output->readMappings);
         }
 
+        //In split mode, revise mapping boundaries 
+        if(param.split)
+          reviseMappingBoundary(input, output->readMappings);
+
         return output;
       }
 
@@ -272,7 +277,7 @@ namespace skch
           else
           {  
             //Report mapping
-            reportReadMappings(output, outstrm); 
+            reportReadMappings(output->readMappings, output->qseqName, outstrm); 
           }
 
           delete output;
@@ -510,6 +515,10 @@ namespace skch
           MIIter_t firstSuperWindowRangeStart = this->refSketch.searchIndex(candidateLocus.seqId, 
               candidateLocus.rangeStartPos);
 
+          //If iterator points to index end or a different reference sequence, return as there are no candidates 
+          if ( this->refSketch.isMinimizerIndexEnd(firstSuperWindowRangeStart) || firstSuperWindowRangeStart->seqId != candidateLocus.seqId)
+            return;
+
           //Count of minimizer windows in a super-window
           offset_t countMinimizerWindows = Q.len - (param.windowSize-1) - (param.kmerSize-1); 
 
@@ -521,7 +530,7 @@ namespace skch
           MIIter_t lastSuperWindowRangeEnd = this->refSketch.searchIndex(candidateLocus.seqId, 
               candidateLocus.rangeEndPos + Q.len);
 
-          //Define map such that it contains only the query minimizers
+          //Define std::map such that it contains only the query minimizers
           //Used to efficiently compute the jaccard similarity between qry and ref
           SlideMapper<Q_Info> slidemap(Q);
 
@@ -583,6 +592,43 @@ namespace skch
         }
 
       /**
+       * @brief                                 Compute jaccard similarity of given query seq 
+       *                                        at a single position on reference sequence
+       * @param[in]   Q                         query sequence information
+       * @param[in]   seqId                     reference sequence id
+       * @param[in]   refStartPos               offset on reference sequence
+       * return                                 jaccard similarity
+       */
+      template <typename Q_Info>
+        double computeJaccardSinglePos(Q_Info &Q, seqno_t seqId, offset_t refStartPos)
+        {
+          //Look up L1 candidate's begin in the index
+          MIIter_t superWindowRangeStart = this->refSketch.searchIndex(seqId, refStartPos);
+
+          if (Q.sketchSize == 0)
+            return 0;
+          
+          //If iterator points to index end or a different reference sequence, return zero 
+          if ( this->refSketch.isMinimizerIndexEnd(superWindowRangeStart) || superWindowRangeStart->seqId != seqId)
+            return 0;
+
+          //Count of minimizer windows in a super-window
+          offset_t countMinimizerWindows = Q.len - (param.windowSize-1) - (param.kmerSize-1); 
+
+          //Look up the end of the first L2 super-window in the index
+          MIIter_t superWindowRangeEnd = this->refSketch.searchIndex(seqId, 
+              superWindowRangeStart->wpos + countMinimizerWindows);
+
+          //Define std::map and let it contain only the query minimizers
+          SlideMapper<Q_Info> slidemap(Q);
+
+          //Insert all the minimizers in the first super-window
+          slidemap.insert_ref(superWindowRangeStart, superWindowRangeEnd);
+
+          return slidemap.sharedSketchElements * 1.0 / Q.sketchSize;
+        }
+
+      /**
        * @brief                       Merge the consecutive fragment mappings reported in each query 
        * @param[in/out] readMappings  Mappings computed by Mashmap (L2 stage) for a read
        */
@@ -594,7 +640,7 @@ namespace skch
           if(readMappings.size() < 2)
             return;
 
-          //length of the read fragment done for split mapping
+          //length of the read fragment used for split mapping
           auto fragmentLength = param.minAlignLen/2; 
 
           //Sort the mappings by reference position
@@ -677,54 +723,254 @@ namespace skch
        }
 
       /**
-       * @brief                     Report the final read mappings to output stream
-       * @param[in]   output        mapping output i.e. mapping results for a read
-       * @param[in]   outstrm       file output stream object
+       * @brief                       Extend the query mapping boundaries which was cut due to 
+       *                              query fragmentation
+       * @param[in]     input         input read details
+       * @param[in/out] readMappings  Mappings computed by Mashmap (L2 stage) for a read
        */
-      void reportReadMappings(MapModuleOutput *output, 
-          std::ofstream &outstrm)
-      {
-        //Print the results
-        for(auto &e : output->readMappings)
+      template <typename VecIn>
+        void reviseMappingBoundary(InputSeqContainer* input, VecIn &readMappings)
         {
-          assert(e.refSeqId < this->refSketch.metadata.size());
+          assert(param.split == true);
+         
+          //length of the read fragment used for split mapping
+          auto fragmentLength = param.minAlignLen/2; 
 
-          outstrm  << output->qseqName 
-            << " " << e.queryLen 
-            << " " << e.queryStartPos
-            << " " << e.queryEndPos
-            << " " << (e.strand == strnd::FWD ? "+" : "-") 
-            << " " << this->refSketch.metadata[e.refSeqId].name
-            << " " << this->refSketch.metadata[e.refSeqId].len
-            << " " << e.refStartPos 
-            << " " << e.refEndPos
-            << " " << e.nucIdentity;
+          for(auto &e : readMappings)
+          {
+            //Fix begin coordinate as well as end coordinate
+            
+            //Begin coordinate
+            if(e.queryStartPos > 0)
+            {
+              // fragment begin position will be slided through [searchStartOffset, searchEndOffset]
+              // for jaccard computation
+              //    -------...                                    sliding fragment
+              //          S-------------------------E             mapping boundary
+              // ------------------------------------------------ query       
+              offset_t searchStartOffset = std::max(0, e.queryStartPos - fragmentLength + 1);
+              offset_t searchEndOffset = e.queryStartPos - 1;
 
-          //Print some additional statistics
-          outstrm << " " << e.conservedSketches 
-            << " " << e.sketchSize << "\n";
+#if DEBUG
+              std::cout << "INFO, skch::Map::reviseMappingBoundary, beginning correction of query #" << e.querySeqId << " start pos, search range= [" << searchStartOffset << ", " << searchEndOffset << "]" << std::endl;
+#endif
 
-          //User defined processing of the results
-          if(processMappingResults != nullptr)
-            processMappingResults(e);
+              this->doBinarySearchforStartPos(input, searchStartOffset, searchEndOffset, e);
+            }
+
+            //End coordinate
+            if(e.queryEndPos < input->len - 1)
+            {
+              // fragment begin position will be slided through [searchStartOffset, searchEndOffset]
+              // for jaccard computation
+              //                              --------...         sliding fragment
+              //          S-------------------------E             mapping boundary
+              // ------------------------------------------------ query       
+              offset_t searchStartOffset = e.queryEndPos - fragmentLength + 2;
+              offset_t searchEndOffset = std::min(e.queryEndPos, input->len - fragmentLength);  
+
+#if DEBUG
+              std::cout << "INFO, skch::Map::reviseMappingBoundary, beginning correction of query #" << e.querySeqId << " end pos, search range= [" << searchStartOffset << ", " << searchEndOffset << "]" << std::endl;
+#endif
+
+              //If mapping end is close to query length, it may be faster to evaluate the last offset first
+              //than doing a binary search
+              bool checkLastPosFirst = e.queryEndPos >= input->len - fragmentLength;
+
+              this->doBinarySearchforEndPos(input, searchStartOffset, searchEndOffset, checkLastPosFirst, e);
+            }
+
+          }
         }
+
+      /**
+       * @brief                             Extend the query start position in given mapping to left
+       * @param[in]     input               input read details
+       * @param[in]     searchStartOffset   search start offset for fragment window's begin (inclusive)
+       * @param[in]     searchEndOffset     search end offset for fragment window's begin (inclusive)
+       * @param[in/out] mapping             mapping computed by Mashmap (L2 stage) for a read,
+       *                                    mapping boundaries are revised in this routine
+       */
+      void doBinarySearchforStartPos(InputSeqContainer* input, 
+          offset_t searchStartOffset, offset_t searchEndOffset,
+          MappingResult &mapping)
+      {
+        offset_t revisedStartPosQuery = mapping.queryStartPos;
+
+        //Binary search for the first position in the search range which satisfies jaccard cutoff
+        while(searchStartOffset <= searchEndOffset)
+        {
+          offset_t midPoint = (searchStartOffset + searchEndOffset)/2;
+
+          if( checkFragmentWindowJaccard(midPoint, input, mapping) )
+          {
+            revisedStartPosQuery = midPoint; 
+            searchEndOffset = midPoint - 1;
+          }
+          else
+          {
+            searchStartOffset = midPoint + 1;
+          }
+        }
+
+        //Revise mapping coordinates
+
+        if(mapping.strand == strnd::FWD) //Forward strand mapping 
+          mapping.refStartPos = std::max(0, mapping.refStartPos -   (mapping.queryStartPos-revisedStartPosQuery));
+        else
+          mapping.refEndPos   = std::max(0, mapping.refEndPos   +   (mapping.queryStartPos-revisedStartPosQuery));
+
+        mapping.queryStartPos = revisedStartPosQuery;
+      }
+
+      /**
+       * @brief                             Extend the query end position in given mapping to right
+       * @param[in]     input               input read details
+       * @param[in]     searchStartOffset   search start offset for fragment window's begin (inclusive)
+       * @param[in]     searchEndOffset     search end offset for fragment window's begin (inclusive)
+       * @param[in]     checkLastPosFirst   check last position before beginning binary search
+       * @param[in/out] mapping             mapping computed by Mashmap (L2 stage) for a read,
+       *                                    mapping boundaries are revised in this routine
+       */
+      void doBinarySearchforEndPos(InputSeqContainer* input, 
+          offset_t searchStartOffset, offset_t searchEndOffset,
+          bool checkLastPosFirst,
+          MappingResult &mapping)
+      {
+        offset_t revisedEndPosQuery = mapping.queryEndPos;
+
+        //length of the read fragment used for split mapping
+        auto fragmentLength = param.minAlignLen/2; 
+
+        bool checkLastPosFirstSucceeded = false;
+
+        if(checkLastPosFirst)
+        {
+          //Evaulate last offset in the search range first
+          if( checkFragmentWindowJaccard(searchEndOffset, input, mapping) )
+          {
+            revisedEndPosQuery = searchEndOffset + fragmentLength - 1;
+            checkLastPosFirstSucceeded = true;
+          }
+        }
+
+        //Binary search for the last position in the search range which satisfies jaccard cutoff
+        while(searchStartOffset <= searchEndOffset && !checkLastPosFirstSucceeded)
+        {
+          offset_t midPoint = (searchStartOffset + searchEndOffset)/2;
+
+          if( checkFragmentWindowJaccard(midPoint, input, mapping) )
+          {
+            revisedEndPosQuery = midPoint + fragmentLength - 1; 
+            searchStartOffset = midPoint + 1;
+          }
+          else
+          {
+            searchEndOffset = midPoint - 1;
+          }
+        }
+
+        //Revise mapping coordinates
+
+        if(mapping.strand == strnd::FWD) //Forward strand mapping 
+          mapping.refEndPos   = std::max(0, mapping.refEndPos   +   (revisedEndPosQuery-mapping.queryEndPos));
+        else
+          mapping.refStartPos = std::max(0, mapping.refStartPos -   (revisedEndPosQuery-mapping.queryEndPos));
+
+        mapping.queryEndPos = revisedEndPosQuery;
+      }
+
+      /**
+       * @brief                                     evaluate jaccard at the asked boundary
+       * @param[in]     fragmentWindowStartOffset   begin position of fragment window wrt. query sequence
+       * @param[in]     input                       input read details
+       * @param[in]     mapping                     mapping computed by Mashmap after L2 stage for a read,
+       * @return                                    true if jaccard is above our cutoff
+       */
+      bool checkFragmentWindowJaccard(offset_t fragmentWindowStartOffset, InputSeqContainer* input,
+          MappingResult &mapping)
+      {
+        QueryMetaData <MinVec_Type> Q;
+
+        //length of the read fragment used for split mapping
+        auto fragmentLength = param.minAlignLen/2; 
+
+        //Prepare fragment sequence object 
+        {
+          Q.seq = &(input->seq)[0u] + fragmentWindowStartOffset;
+          Q.len = fragmentLength;
+          Q.seqCounter = input->seqCounter;
+
+          CommonFunc::addMinimizers(Q.minimizerTableQuery, Q.seq, Q.len, param.kmerSize, param.windowSize, param.alphabetSize, Q.seqCounter);
+
+          std::sort(Q.minimizerTableQuery.begin(), Q.minimizerTableQuery.end(), MinimizerInfo::lessByHash);
+          auto uniqEndIter = std::unique(Q.minimizerTableQuery.begin(), Q.minimizerTableQuery.end(), MinimizerInfo::equalityByHash);
+          Q.sketchSize = std::distance(Q.minimizerTableQuery.begin(), uniqEndIter);
+        }
+
+        //Ignore the query in this case
+        if(Q.sketchSize == 0)
+          return false;
+
+        //position on reference sequence where jaccard should be evaluated
+        offset_t refStartOffset;
+
+        if(mapping.strand == strnd::FWD) //Forward strand mapping 
+        {
+          if(fragmentWindowStartOffset > mapping.queryStartPos)
+          {
+            //means we are working on revising the end position of query
+            refStartOffset = std::max(0, mapping.refEndPos - (mapping.queryEndPos - fragmentWindowStartOffset)); 
+          }
+          else
+          {
+            //means we are working on revising the start position of query
+            refStartOffset = std::max(0, mapping.refStartPos - (mapping.queryStartPos - fragmentWindowStartOffset));
+          }
+        }               
+        else                            //Reverse strand mapping
+        {
+          if(fragmentWindowStartOffset > mapping.queryStartPos)
+          {
+            //means we are working on revising the end position of query
+            refStartOffset = std::max(0, mapping.refStartPos - (fragmentWindowStartOffset + fragmentLength - 1 - mapping.queryEndPos)); 
+          }
+          else
+          {
+            //means we are working on revising the start position of query
+            refStartOffset = std::max(0, mapping.refEndPos - (fragmentWindowStartOffset + fragmentLength - 1 - mapping.queryStartPos));
+          }
+        }
+
+        //Compute jaccard similarity
+        double jaccard = computeJaccardSinglePos(Q, mapping.refSeqId, refStartOffset);
+
+        //Compute identity
+        float mash_dist = Stat::j2md(jaccard, param.kmerSize);
+        float mash_dist_lower_bound = Stat::md_lower_bound(mash_dist, Q.sketchSize, param.kmerSize, skch::fixed::confidence_interval);
+        float nucIdentityUpperBound = 100 * (1 - mash_dist_lower_bound);
+
+        if(nucIdentityUpperBound >= param.percentageIdentity)
+          return true;
+        else
+          return false;
       }
 
       /**
        * @brief                         Report the final read mappings to output stream
-       * @param[in]   allReadMappings   mapping results for all reads
+       * @param[in]   readMappings      mapping results for single or multiple reads
+       * @param[in]   queryName         input required if reporting one read at a time
        * @param[in]   outstrm           file output stream object
        */
-      void reportReadMappings(MappingResultsVector_t &allReadMappings, 
+      void reportReadMappings(MappingResultsVector_t &readMappings, const std::string &queryName, 
           std::ofstream &outstrm)
       {
         //Print the results
-        for(auto &e : allReadMappings)
+        for(auto &e : readMappings)
         {
-          assert(e.querySeqId < allReadMappings.size());
           assert(e.refSeqId < this->refSketch.metadata.size());
 
-          outstrm  << qmetadata[e.querySeqId].name
+          outstrm  << (param.filterMode == filter::ONETOONE ? qmetadata[e.querySeqId].name : queryName)
             << " " << e.queryLen 
             << " " << e.queryStartPos
             << " " << e.queryEndPos
@@ -735,9 +981,11 @@ namespace skch
             << " " << e.refEndPos
             << " " << e.nucIdentity;
 
-          //Print some additional statistics
-          outstrm << " " << e.conservedSketches 
-            << " " << e.sketchSize << "\n";
+#ifdef DEBUG
+            outstrm << std::endl;
+#else
+            outstrm << "\n";
+#endif
 
           //User defined processing of the results
           if(processMappingResults != nullptr)

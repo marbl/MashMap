@@ -17,8 +17,8 @@ Follow [`INSTALL.txt`](INSTALL.txt) to compile and install MashMap.
   mashmap -s reference.fna -q query.fa -o output.txt
   ```
   The output is space-delimited with each line consisting of query name, length,
-  0-based start, end, strand, target name, length, start, end, mapping nucleotide
-  identity, count of shared sketch elements and the sketch size.
+  0-based start, end, strand, target name, length, start, end and mapping nucleotide
+  identity.
 
 * Map set of long reads against a list of reference genomes:
   ```sh
@@ -32,7 +32,7 @@ For most of the use cases, default values should be appropriate. However, differ
 
 * Identity threshold (--perc_identity, --pi) : By default, its set to 85, implying read mappings with 85% identity should be reported. It can be set to 80% to account for more noisy read datasets.
 
-* Minimum read length (-m, --minMatchLength) :  Default is 10,000 bp. This is set to 10K as the current average read lengths for both ONT and PacBio are >10K. Reads below this length are ignored.
+* Minimum alignment length (-m, --minAlignLen) :  Default is 10,000 bp. This is set to 10K by default. Reads below this length are ignored.
 
 * Protein sequences (-a, --protein) : Use this parameter when mapping protein sequences. MashMap adjusts alphabet and k-mer size accordingly.
 
