@@ -17,8 +17,8 @@ Follow [`INSTALL.txt`](INSTALL.txt) to compile and install MashMap.
   mashmap -s reference.fna -q query.fa -o output.txt
   ```
   The output is space-delimited with each line consisting of query name, length,
-  0-based start, end, strand, target name, length, start, end, mapping nucleotide
-  identity, count of shared sketch elements and the sketch size.
+  0-based start, end, strand, target name, length, start, end and mapping nucleotide
+  identity.
 
 * Map set of long reads against a list of reference genomes:
   ```sh
