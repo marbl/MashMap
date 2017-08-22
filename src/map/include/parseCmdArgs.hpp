@@ -29,11 +29,11 @@ namespace skch
   void initCmdParser(CommandLineProcessing::ArgvParser &cmd)
   {
     cmd.setIntroductoryDescription("-----------------\n\
-Mashmap is an approximate long read mapper based on Jaccard similarity\n\
+Mashmap is an approximate long read or contig mapper based on Jaccard similarity\n\
 -----------------\n\
 Example usage: \n\
-$ mashmap -s ref.fa -q long_reads.fq [OPTIONS]\n\
-$ mashmap --sl reference_files_list.txt -q long_reads.fq [OPTIONS]");
+$ mashmap -s ref.fa -q seq.fq [OPTIONS]\n\
+$ mashmap --sl reference_files_list.txt -q seq.fq [OPTIONS]");
 
     cmd.setHelpOption("h", "help", "Print this help page");
 
@@ -50,10 +50,10 @@ $ mashmap --sl reference_files_list.txt -q long_reads.fq [OPTIONS]");
     cmd.defineOptionAlternative("queryList","ql");
 
     cmd.defineOption("minAlignLen", "minimum alignment length to compute [default : 10,000]\n\
-reads shorter than minAlignLen will be ignored", ArgvParser::OptionRequiresValue);
+sequences shorter than minAlignLen will be ignored", ArgvParser::OptionRequiresValue);
     cmd.defineOptionAlternative("minAlignLen","m");
 
-    cmd.defineOption("split", "enable split read mapping [disabled by default]");
+    cmd.defineOption("noSplit", "disable splitting input sequences during mapping [enabled by default]");
 
     cmd.defineOption("perc_identity", "threshold for identity [default : 85]", ArgvParser::OptionRequiresValue);
     cmd.defineOptionAlternative("perc_identity","pi");
@@ -251,12 +251,12 @@ reads shorter than minAlignLen will be ignored", ArgvParser::OptionRequiresValue
     else
       parameters.filterMode = filter::MAP;
 
-    if(cmd.foundOption("split"))
+    if(cmd.foundOption("noSplit"))
     {
-      parameters.split = true;
+      parameters.split = false;
     }
     else
-      parameters.split = false;
+      parameters.split = true;
 
 
     //Parse algorithm parameters
