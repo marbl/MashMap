@@ -8,6 +8,7 @@
 #define BASE_TYPES_MAP_HPP
 
 #include <tuple>
+#include <vector>
 
 namespace skch
 {

@@ -100,6 +100,22 @@ sequences shorter than minAlignLen will be ignored", ArgvParser::OptionRequiresV
     }
 
   /**
+   * @brief                     validate single input file
+   * @param[in] fileName        file name
+   */
+  void validateInputFile(std::string &fileName)
+  {
+    //Open file one by one
+    std::ifstream in(fileName);
+
+    if (in.fail())
+    {
+      std::cerr << "ERROR, skch::validateInputFile, Could not open " << fileName << std::endl;
+      exit(1);
+    }
+  }
+
+  /**
    * @brief                     validate the reference and query file(s)
    * @param[in] querySequences  vector containing query file names
    * @param[in] refSequences    vector containing reference file names
@@ -107,28 +123,12 @@ sequences shorter than minAlignLen will be ignored", ArgvParser::OptionRequiresV
   template <typename VEC>
     void validateInputFiles(VEC &querySequences, VEC &refSequences)
     {
-      //Open file one by one
+      //validate files one by one
       for(auto &e : querySequences)
-      {
-        std::ifstream in(e);
-
-        if (in.fail())
-        {
-          std::cerr << "ERROR, skch::validateInputFiles, Could not open " << e << std::endl;
-          exit(1);
-        }
-      }
+        validateInputFile(e);
 
       for(auto &e : refSequences)
-      {
-        std::ifstream in(e);
-
-        if (in.fail())
-        {
-          std::cerr << "ERROR, skch::validateInputFiles, Could not open " << e << std::endl;
-          exit(1);
-        }
-      }
+        validateInputFile(e);
     }
 
   /**

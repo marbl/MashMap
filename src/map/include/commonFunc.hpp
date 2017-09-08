@@ -17,7 +17,6 @@
 
 //External includes
 #include "common/murmur3.h"
-#include "common/kseq.h"
 #include "common/prettyprint.hpp"
 
 namespace skch
@@ -33,6 +32,7 @@ namespace skch
 
     /**
      * @brief   reverse complement of kmer (borrowed from mash)
+     * @note    assumes dest is pre-allocated
      */
     inline void reverseComplement(const char* src, char* dest, int length) 
     {

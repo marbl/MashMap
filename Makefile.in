@@ -10,22 +10,16 @@ else
 	CFLAGS += -include src/common/memcpyLink.h
 endif
 
-SOURCES=src/map/mash_map.cpp
+SOURCE_1=src/map/mash_map.cpp
+SOURCE_2=src/align/align.cpp
 
-OBJECTS=$(SOURCES:.cpp=.o)  
+all : mashmap 
 
-all : mashmap
+mashmap : 
+	$(CXX) $(CXXFLAGS) $(CPPFLAGS) $(SOURCE_1) -o mashmap @mathlib@ -lstdc++ -lz -lm -lpthread 
 
-mashmap : $(OBJECTS) 
-	$(CXX) $(CXXFLAGS) $(CPPFLAGS) $(OBJECTS) -o mashmap @mathlib@ -lstdc++ -lz -lm -lpthread 
-
-.SUFFIXES :
-
-%.o : %.cpp 
-	$(CXX) -c $(CXXFLAGS) $(CPPFLAGS) -o $@ $<
-
-%.o : %.c++
-	$(CXX) -c $(CXXFLAGS) $(CPPFLAGS) -o $@ $<
+mashmap-align : 
+	$(CXX) $(CXXFLAGS) $(CPPFLAGS) $(SOURCE_2) -o mashmap-align @mathlib@ -lstdc++ -lz -lm -lpthread 
 
 install : mashmap
 	mkdir -p @prefix@/bin/
@@ -33,4 +27,4 @@ install : mashmap
 
 clean :
 	-rm -f mashmap
-	-rm -f src/map/*.o
+	-rm -f mashmap-align

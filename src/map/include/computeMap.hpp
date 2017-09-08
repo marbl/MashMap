@@ -176,6 +176,13 @@ namespace skch
         {
           skch::Filter::ref::filterMappings(allReadMappings, this->refSketch);
 
+          //Re-sort mappings by input order of query sequences
+          //This order may be needed for any post analysis of output
+          std::sort(allReadMappings.begin(), allReadMappings.end(), [](const MappingResult &a, const MappingResult &b)  
+          {
+            return (a.querySeqId < b.querySeqId);
+          });
+
           reportReadMappings(allReadMappings, "", outstrm);
         }
 
@@ -249,8 +256,12 @@ namespace skch
         }
 
         //In split mode, revise mapping boundaries 
-        if(param.split)
+        //Avoiding when filtering is off 
+        if(param.split && param.filterMode != filter::NONE)
           reviseMappingBoundary(input, output->readMappings);
+
+        //Make sure mapping boundary don't exceed sequence lengths
+        this->mappingBoundarySanityCheck(input, output->readMappings);
 
         return output;
       }
@@ -955,6 +966,52 @@ namespace skch
         else
           return false;
       }
+
+      /**
+       * @brief                       This routine is to make sure that all mapping boundaries
+       *                              on query and reference are not outside total 
+       *                              length of sequeunces involved
+       * @param[in]     input         input read details
+       * @param[in/out] readMappings  Mappings computed by Mashmap (L2 stage) for a read
+       */
+      template <typename VecIn>
+        void mappingBoundarySanityCheck(InputSeqContainer* input, VecIn &readMappings)
+        {
+          for(auto &e : readMappings)
+          {
+            //reference start pos
+            {
+              if(e.refStartPos < 0)
+                e.refStartPos = 0;
+              if(e.refStartPos >= this->refSketch.metadata[e.refSeqId].len)
+                e.refStartPos = this->refSketch.metadata[e.refSeqId].len - 1;
+            }
+
+            //reference end pos
+            {
+              if(e.refEndPos < e.refStartPos)
+                e.refEndPos = e.refStartPos;
+              if(e.refEndPos >= this->refSketch.metadata[e.refSeqId].len)
+                e.refEndPos = this->refSketch.metadata[e.refSeqId].len - 1;
+            }
+
+            //query start pos
+            {
+              if(e.queryStartPos < 0)
+                e.queryStartPos = 0;
+              if(e.queryStartPos >= input->len)
+                e.queryStartPos = input->len;
+            }
+
+            //query end pos
+            {
+              if(e.queryEndPos < e.queryStartPos)
+                e.queryEndPos = e.queryStartPos;
+              if(e.queryEndPos >= input->len)
+                e.queryEndPos = input->len;
+            }
+          }
+        }
 
       /**
        * @brief                         Report the final read mappings to output stream

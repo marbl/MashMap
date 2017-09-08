@@ -947,7 +947,7 @@ sub RunGP ( )
         my $size = $TERMSIZE{$OPT_terminal}{$OPT_size};
         $cmd .= " -geometry ${size}x";
         if ( $OPT_coverage ) { $size = sprintf ("%.0f", $size * .375); }
-        $cmd .= "${size}+0+0 -title mummerplot";
+        $cmd .= "${size}+0+0 -title mashmap-dotplot";
 
         if ( defined $OPT_color && $OPT_color == 0 ) {
             $cmd .= " -mono";
