@@ -254,19 +254,40 @@ namespace align
         assert(queryLen <= qSequence.size());
 
         //Compute alignment
+        auto t0 = skch::Time::now();
+
+        //for defining size of edlib's band during alignment
+        int editDistanceLimit;
+
+        if(param.percentageIdentity == 0)
+          editDistanceLimit = -1;   //not bounded
+        else
+          editDistanceLimit = (int)((1 - param.percentageIdentity/100) * queryLen);
+
+#ifdef DEBUG
+        std::cout << "INFO, align::Aligner::doAlignment, edlib execution starting, query region length = " << queryLen
+          << ", reference region length= " << refLen << ", edit distance limit= " << editDistanceLimit << std::endl; 
+#endif
 
         EdlibAlignResult result = edlibAlign(queryRegionStrand, queryLen, refRegion, refLen, 
-            edlibNewAlignConfig(-1, EDLIB_MODE_HW, EDLIB_TASK_PATH, NULL, 0));
+            edlibNewAlignConfig(editDistanceLimit, EDLIB_MODE_HW, EDLIB_TASK_PATH, NULL, 0));
+
 
 #ifdef DEBUG
         if (result.status == EDLIB_STATUS_OK)
+        {
           std::cout << "INFO, align::Aligner::doAlignment, edlib execution status = OKAY" << std::endl;
+          std::cout << "INFO, align::Aligner::doAlignment, edlib execution finished, alignment length = " <<  result.alignmentLength << std::endl;
+        }
         else
           std::cout << "INFO, align::Aligner::doAlignment, edlib execution status = FAILED" << std::endl;
+
+        std::chrono::duration<double> timeAlign = skch::Time::now() - t0;
+        std::cout << "INFO, align::Aligner::doAlignment, time spent= " << timeAlign.count()  << " sec" << std::endl;
 #endif
 
         //Output to file
-        if (result.status == EDLIB_STATUS_OK) 
+        if (result.status == EDLIB_STATUS_OK && result.alignmentLength != 0) 
         {
           char* cigar = edlibAlignmentToCigar(result.alignment, result.alignmentLength, EDLIB_CIGAR_STANDARD);
 

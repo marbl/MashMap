@@ -509,6 +509,10 @@ namespace skch
               }
             }
           }
+
+#ifdef DEBUG
+          std::cout << "INFO, skch::Map:doL2Mapping, read id " << Q.seqCounter << ", count of L1 candidates= " << l1Mappings.size() << ", count of L2 candidates= " << l2Mappings.size() << std::endl;
+#endif
         }
 
       /**
@@ -558,7 +562,7 @@ namespace skch
 
           int beginOptimalPos, lastOptimalPos;
 
-          while ( std::distance(mi_L2iter.sw_end, lastSuperWindowRangeEnd) > 0)
+          while ( std::distance(mi_L2iter.sw_end, lastSuperWindowRangeEnd) >= 0)
           {
             assert( std::distance(mi_L2iter.sw_beg, firstSuperWindowRangeStart) <= 0);
             assert( std::distance(mi_L2iter.sw_end, lastSuperWindowRangeEnd  ) >= 0);
@@ -591,6 +595,10 @@ namespace skch
             //Back up the current iterator values
             prev_beg_iter = mi_L2iter.sw_beg;
             prev_end_iter = mi_L2iter.sw_end;
+
+            //If current sliding window touches end, we should stop further evaluation
+            if(std::distance(mi_L2iter.sw_end, lastSuperWindowRangeEnd) == 0)
+              break;
 
             //Advance the current super-window
             mi_L2iter.next();

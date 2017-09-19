@@ -28,10 +28,10 @@ namespace align
   {
     cmd.setIntroductoryDescription("-----------------\n\
 Post process mashmap output to compute alignments for obtaining SAM output.\n\
-Provide same reference and query files that were used for obtaining mashmap mapping boundaries.\n\
+Provide same reference, query files that were used for obtaining mashmap mapping boundaries.\n\
 -----------------\n\
 Example usage: \n\
-$ mashmap-align -s ref.fa -q seq.fq --mappingFile mashmap.out [OPTIONS]");
+$ mashmap-align -s ref.fa -q seq.fq --mappingFile mashmap.out --pi 80 [OPTIONS]");
 
     cmd.setHelpOption("h", "help", "Print this help page");
 
@@ -48,6 +48,9 @@ $ mashmap-align -s ref.fa -q seq.fq --mappingFile mashmap.out [OPTIONS]");
     cmd.defineOptionAlternative("queryList","ql");
 
     cmd.defineOption("mappingFile", "mashmap file containing mapping information", ArgvParser::OptionRequiresValue | ArgvParser::OptionRequired);
+
+    cmd.defineOption("perc_identity", "edlib threshold for alignment identity [0-100]", ArgvParser::OptionRequiresValue | ArgvParser::OptionRequired);
+    cmd.defineOptionAlternative("perc_identity","pi");
 
     cmd.defineOption("threads", "count of threads for parallel execution [default : 1]", ArgvParser::OptionRequiresValue);
     cmd.defineOptionAlternative("threads","t");
@@ -66,6 +69,7 @@ $ mashmap-align -s ref.fa -q seq.fq --mappingFile mashmap.out [OPTIONS]");
     std::cout << "Reference = " << parameters.refSequences << std::endl;
     std::cout << "Query = " << parameters.querySequences << std::endl;
     std::cout << "Mapping file = " << parameters.mashmapPafFile << std::endl;
+    std::cout << "Edlib identity cut-off = " << parameters.percentageIdentity << "\%" << std::endl;
     std::cout << "Alignment output file = " << parameters.samOutputFile << std::endl;
     std::cout << ">>>>>>>>>>>>>>>>>>" << std::endl;
   }
@@ -148,6 +152,11 @@ $ mashmap-align -s ref.fa -q seq.fq --mappingFile mashmap.out [OPTIONS]");
 
     str << cmd.optionValue("mappingFile");
     str >> parameters.mashmapPafFile;
+
+    str.clear();
+
+    str << cmd.optionValue("perc_identity");
+    str >> parameters.percentageIdentity;
 
     str.clear();
 
