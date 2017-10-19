@@ -283,8 +283,8 @@ sequences shorter than segment length will be ignored", ArgvParser::OptionRequir
 
       if(parameters.segLength < 1000)
       {
-        std::cerr << "ERROR, skch::parseandSave, minimum local alignment length requirement should be >= 1000 bp.\n\
-          This is because Mashmap is not efficient for computing short alignments.\n" << std::endl;
+        std::cerr << "ERROR, skch::parseandSave, minimum segment length is required to be >= 1000 bp.\n\
+          This is because Mashmap is not designed for computing short local alignments.\n" << std::endl;
         exit(1);
       }
     }
