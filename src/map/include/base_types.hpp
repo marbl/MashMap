@@ -86,6 +86,12 @@ namespace skch
     REV = -1
   };  
 
+  enum event : int
+  {
+    BEGIN = 1,
+    END = 2
+  };
+
   //filter mode in mashmap
   enum filter : int
   {
@@ -116,11 +122,11 @@ namespace skch
     offset_t splitMappingId;                            // To identify split mappings that are chained
     int discard;                                        // set to 1 for deletion
 
-    offset_t qlen() const {                             //length of this mapping on query axis 
+    offset_t qlen() {                                   //length of this mapping on query axis 
       return queryEndPos - queryStartPos + 1;
     }
 
-    offset_t rlen() const {                             //length of this mapping on reference axis 
+    offset_t rlen() {                                   //length of this mapping on reference axis 
       return refEndPos - refStartPos + 1;
     }
   };

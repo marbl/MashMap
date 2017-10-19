@@ -137,7 +137,7 @@ namespace skch
               qmetadata.push_back( ContigInfo{seq->name.s, (offset_t) seq->seq.l} );
 
             //Is the read too short?
-            if(len < param.windowSize || len < param.kmerSize || len < param.minAlignLen)
+            if(len < param.windowSize || len < param.kmerSize || len < param.segLength)
             {
 
 #ifdef DEBUG
@@ -218,16 +218,16 @@ namespace skch
         }
         else  //Split read mapping
         {
-          int fragmentCount = input->len / (param.minAlignLen/2);
+          int noOverlapFragmentCount = input->len / param.segLength;
           bool mappingReported = false;
 
-          //Map individual short fragments in the read
-          for (int i = 0; i < fragmentCount; i++)
+          //Map individual non-overlapping fragments in the read
+          for (int i = 0; i < noOverlapFragmentCount; i++)
           {
             //Prepare fragment sequence object 
             QueryMetaData <MinVec_Type> Q;
-            Q.seq = &(input->seq)[0u] + i * (param.minAlignLen/2);
-            Q.len = (param.minAlignLen/2);
+            Q.seq = &(input->seq)[0u] + i * param.segLength;
+            Q.len = param.segLength;
             Q.seqCounter = input->seqCounter;
 
             MappingResultsVector_t l2Mappings;   
@@ -238,8 +238,32 @@ namespace skch
             //Adjust query coordinates and length in the reported mapping
             std::for_each(l2Mappings.begin(), l2Mappings.end(), [&](MappingResult &e){ 
                 e.queryLen = input->len;
-                e.queryStartPos = i * (param.minAlignLen/2);
-                e.queryEndPos = i * (param.minAlignLen/2) + Q.len - 1;
+                e.queryStartPos = i * param.segLength;
+                e.queryEndPos = i * param.segLength + Q.len - 1;
+                });
+
+            output->readMappings.insert(output->readMappings.end(), l2Mappings.begin(), l2Mappings.end());
+          }
+
+          //Map last overlapping fragment to cover the whole read
+          if (noOverlapFragmentCount >= 1 && input->len % param.segLength != 0)
+          {
+            //Prepare fragment sequence object 
+            QueryMetaData <MinVec_Type> Q;
+            Q.seq = &(input->seq)[0u] + input->len - param.segLength;
+            Q.len = param.segLength;
+            Q.seqCounter = input->seqCounter;
+
+            MappingResultsVector_t l2Mappings;   
+
+            //Map this fragment
+            mapSingleQueryFrag(Q, l2Mappings);
+
+            //Adjust query coordinates and length in the reported mapping
+            std::for_each(l2Mappings.begin(), l2Mappings.end(), [&](MappingResult &e){ 
+                e.queryLen = input->len;
+                e.queryStartPos = input->len - param.segLength;
+                e.queryEndPos = input->len - 1;
                 });
 
             output->readMappings.insert(output->readMappings.end(), l2Mappings.begin(), l2Mappings.end());
@@ -254,11 +278,6 @@ namespace skch
         {
           skch::Filter::query::filterMappings(output->readMappings);
         }
-
-        //In split mode, revise mapping boundaries 
-        //Avoiding when filtering is off 
-        if(param.split && param.filterMode != filter::NONE)
-          reviseMappingBoundary(input, output->readMappings);
 
         //Make sure mapping boundary don't exceed sequence lengths
         this->mappingBoundarySanityCheck(input, output->readMappings);
@@ -659,9 +678,6 @@ namespace skch
           if(readMappings.size() < 2)
             return;
 
-          //length of the read fragment used for split mapping
-          auto fragmentLength = param.minAlignLen/2; 
-
           //Sort the mappings by reference position
           std::sort(readMappings.begin(), readMappings.end(), [](const MappingResult &a, const MappingResult &b)  
               {
@@ -678,14 +694,14 @@ namespace skch
           for(auto it = readMappings.begin(); it != readMappings.end(); it++)
           {
             //Which fragment is this wrt. the complete read
-            auto currMappingFragno = it->queryStartPos/fragmentLength;
+            auto currMappingFragno = std::ceil(it->queryStartPos * 1.0/param.segLength);
 
             for(auto it2 = std::next(it); it2 != readMappings.end(); it2++)
             {
-              auto thisMappingFragno = it2->queryStartPos / fragmentLength;
+              auto thisMappingFragno = std::ceil(it2->queryStartPos * 1.0/ param.segLength);
 
               //If this mapping is too far from current mapping being evaluated, stop finding a merge
-              if(it2->refSeqId != it->refSeqId || it2->refStartPos - it->refEndPos > 2 * fragmentLength)
+              if(it2->refSeqId != it->refSeqId || it2->refStartPos - it->refEndPos > 2 * param.segLength)
                 break;
 
               //If the next mapping is within range, check if it is consecutive query fragment and strand matches
@@ -740,240 +756,6 @@ namespace skch
               std::remove_if(readMappings.begin(), readMappings.end(), [&](MappingResult &e){ return e.discard == 1; }),
               readMappings.end());
        }
-
-      /**
-       * @brief                       Extend the query mapping boundaries which was cut due to 
-       *                              query fragmentation
-       * @param[in]     input         input read details
-       * @param[in/out] readMappings  Mappings computed by Mashmap (L2 stage) for a read
-       */
-      template <typename VecIn>
-        void reviseMappingBoundary(InputSeqContainer* input, VecIn &readMappings)
-        {
-          assert(param.split == true);
-         
-          //length of the read fragment used for split mapping
-          auto fragmentLength = param.minAlignLen/2; 
-
-          for(auto &e : readMappings)
-          {
-            //Fix begin coordinate as well as end coordinate
-            
-            //Begin coordinate
-            if(e.queryStartPos > 0)
-            {
-              // fragment begin position will be slided through [searchStartOffset, searchEndOffset]
-              // for jaccard computation
-              //    -------...                                    sliding fragment
-              //          S-------------------------E             mapping boundary
-              // ------------------------------------------------ query       
-              offset_t searchStartOffset = std::max(0, e.queryStartPos - fragmentLength + 1);
-              offset_t searchEndOffset = e.queryStartPos - 1;
-
-#if DEBUG
-              std::cout << "INFO, skch::Map::reviseMappingBoundary, beginning correction of query #" << e.querySeqId << " start pos, search range= [" << searchStartOffset << ", " << searchEndOffset << "]" << std::endl;
-#endif
-
-              this->doBinarySearchforStartPos(input, searchStartOffset, searchEndOffset, e);
-            }
-
-            //End coordinate
-            if(e.queryEndPos < input->len - 1)
-            {
-              // fragment begin position will be slided through [searchStartOffset, searchEndOffset]
-              // for jaccard computation
-              //                              --------...         sliding fragment
-              //          S-------------------------E             mapping boundary
-              // ------------------------------------------------ query       
-              offset_t searchStartOffset = e.queryEndPos - fragmentLength + 2;
-              offset_t searchEndOffset = std::min(e.queryEndPos, input->len - fragmentLength);  
-
-#if DEBUG
-              std::cout << "INFO, skch::Map::reviseMappingBoundary, beginning correction of query #" << e.querySeqId << " end pos, search range= [" << searchStartOffset << ", " << searchEndOffset << "]" << std::endl;
-#endif
-
-              //If mapping end is close to query length, it may be faster to evaluate the last offset first
-              //than doing a binary search
-              bool checkLastPosFirst = e.queryEndPos >= input->len - fragmentLength;
-
-              this->doBinarySearchforEndPos(input, searchStartOffset, searchEndOffset, checkLastPosFirst, e);
-            }
-
-          }
-        }
-
-      /**
-       * @brief                             Extend the query start position in given mapping to left
-       * @param[in]     input               input read details
-       * @param[in]     searchStartOffset   search start offset for fragment window's begin (inclusive)
-       * @param[in]     searchEndOffset     search end offset for fragment window's begin (inclusive)
-       * @param[in/out] mapping             mapping computed by Mashmap (L2 stage) for a read,
-       *                                    mapping boundaries are revised in this routine
-       */
-      void doBinarySearchforStartPos(InputSeqContainer* input, 
-          offset_t searchStartOffset, offset_t searchEndOffset,
-          MappingResult &mapping)
-      {
-        offset_t revisedStartPosQuery = mapping.queryStartPos;
-
-        //Binary search for the first position in the search range which satisfies jaccard cutoff
-        while(searchStartOffset <= searchEndOffset)
-        {
-          offset_t midPoint = (searchStartOffset + searchEndOffset)/2;
-
-          if( checkFragmentWindowJaccard(midPoint, input, mapping) )
-          {
-            revisedStartPosQuery = midPoint; 
-            searchEndOffset = midPoint - 1;
-          }
-          else
-          {
-            searchStartOffset = midPoint + 1;
-          }
-        }
-
-        //Revise mapping coordinates
-
-        if(mapping.strand == strnd::FWD) //Forward strand mapping 
-          mapping.refStartPos = std::max(0, mapping.refStartPos -   (mapping.queryStartPos-revisedStartPosQuery));
-        else
-          mapping.refEndPos   = std::max(0, mapping.refEndPos   +   (mapping.queryStartPos-revisedStartPosQuery));
-
-        mapping.queryStartPos = revisedStartPosQuery;
-      }
-
-      /**
-       * @brief                             Extend the query end position in given mapping to right
-       * @param[in]     input               input read details
-       * @param[in]     searchStartOffset   search start offset for fragment window's begin (inclusive)
-       * @param[in]     searchEndOffset     search end offset for fragment window's begin (inclusive)
-       * @param[in]     checkLastPosFirst   check last position before beginning binary search
-       * @param[in/out] mapping             mapping computed by Mashmap (L2 stage) for a read,
-       *                                    mapping boundaries are revised in this routine
-       */
-      void doBinarySearchforEndPos(InputSeqContainer* input, 
-          offset_t searchStartOffset, offset_t searchEndOffset,
-          bool checkLastPosFirst,
-          MappingResult &mapping)
-      {
-        offset_t revisedEndPosQuery = mapping.queryEndPos;
-
-        //length of the read fragment used for split mapping
-        auto fragmentLength = param.minAlignLen/2; 
-
-        bool checkLastPosFirstSucceeded = false;
-
-        if(checkLastPosFirst)
-        {
-          //Evaulate last offset in the search range first
-          if( checkFragmentWindowJaccard(searchEndOffset, input, mapping) )
-          {
-            revisedEndPosQuery = searchEndOffset + fragmentLength - 1;
-            checkLastPosFirstSucceeded = true;
-          }
-        }
-
-        //Binary search for the last position in the search range which satisfies jaccard cutoff
-        while(searchStartOffset <= searchEndOffset && !checkLastPosFirstSucceeded)
-        {
-          offset_t midPoint = (searchStartOffset + searchEndOffset)/2;
-
-          if( checkFragmentWindowJaccard(midPoint, input, mapping) )
-          {
-            revisedEndPosQuery = midPoint + fragmentLength - 1; 
-            searchStartOffset = midPoint + 1;
-          }
-          else
-          {
-            searchEndOffset = midPoint - 1;
-          }
-        }
-
-        //Revise mapping coordinates
-
-        if(mapping.strand == strnd::FWD) //Forward strand mapping 
-          mapping.refEndPos   = std::max(0, mapping.refEndPos   +   (revisedEndPosQuery-mapping.queryEndPos));
-        else
-          mapping.refStartPos = std::max(0, mapping.refStartPos -   (revisedEndPosQuery-mapping.queryEndPos));
-
-        mapping.queryEndPos = revisedEndPosQuery;
-      }
-
-      /**
-       * @brief                                     evaluate jaccard at the asked boundary
-       * @param[in]     fragmentWindowStartOffset   begin position of fragment window wrt. query sequence
-       * @param[in]     input                       input read details
-       * @param[in]     mapping                     mapping computed by Mashmap after L2 stage for a read,
-       * @return                                    true if jaccard is above our cutoff
-       */
-      bool checkFragmentWindowJaccard(offset_t fragmentWindowStartOffset, InputSeqContainer* input,
-          MappingResult &mapping)
-      {
-        QueryMetaData <MinVec_Type> Q;
-
-        //length of the read fragment used for split mapping
-        auto fragmentLength = param.minAlignLen/2; 
-
-        //Prepare fragment sequence object 
-        {
-          Q.seq = &(input->seq)[0u] + fragmentWindowStartOffset;
-          Q.len = fragmentLength;
-          Q.seqCounter = input->seqCounter;
-
-          CommonFunc::addMinimizers(Q.minimizerTableQuery, Q.seq, Q.len, param.kmerSize, param.windowSize, param.alphabetSize, Q.seqCounter);
-
-          std::sort(Q.minimizerTableQuery.begin(), Q.minimizerTableQuery.end(), MinimizerInfo::lessByHash);
-          auto uniqEndIter = std::unique(Q.minimizerTableQuery.begin(), Q.minimizerTableQuery.end(), MinimizerInfo::equalityByHash);
-          Q.sketchSize = std::distance(Q.minimizerTableQuery.begin(), uniqEndIter);
-        }
-
-        //Ignore the query in this case
-        if(Q.sketchSize == 0)
-          return false;
-
-        //position on reference sequence where jaccard should be evaluated
-        offset_t refStartOffset;
-
-        if(mapping.strand == strnd::FWD) //Forward strand mapping 
-        {
-          if(fragmentWindowStartOffset > mapping.queryStartPos)
-          {
-            //means we are working on revising the end position of query
-            refStartOffset = std::max(0, mapping.refEndPos - (mapping.queryEndPos - fragmentWindowStartOffset)); 
-          }
-          else
-          {
-            //means we are working on revising the start position of query
-            refStartOffset = std::max(0, mapping.refStartPos - (mapping.queryStartPos - fragmentWindowStartOffset));
-          }
-        }               
-        else                            //Reverse strand mapping
-        {
-          if(fragmentWindowStartOffset > mapping.queryStartPos)
-          {
-            //means we are working on revising the end position of query
-            refStartOffset = std::max(0, mapping.refStartPos - (fragmentWindowStartOffset + fragmentLength - 1 - mapping.queryEndPos)); 
-          }
-          else
-          {
-            //means we are working on revising the start position of query
-            refStartOffset = std::max(0, mapping.refEndPos - (fragmentWindowStartOffset + fragmentLength - 1 - mapping.queryStartPos));
-          }
-        }
-
-        //Compute jaccard similarity
-        double jaccard = computeJaccardSinglePos(Q, mapping.refSeqId, refStartOffset);
-
-        //Compute identity
-        float mash_dist = Stat::j2md(jaccard, param.kmerSize);
-        float mash_dist_lower_bound = Stat::md_lower_bound(mash_dist, Q.sketchSize, param.kmerSize, skch::fixed::confidence_interval);
-        float nucIdentityUpperBound = 100 * (1 - mash_dist_lower_bound);
-
-        if(nucIdentityUpperBound >= param.percentageIdentity)
-          return true;
-        else
-          return false;
-      }
 
       /**
        * @brief                       This routine is to make sure that all mapping boundaries
@@ -1047,9 +829,9 @@ namespace skch
             << " " << e.nucIdentity;
 
 #ifdef DEBUG
-            outstrm << std::endl;
+          outstrm << std::endl;
 #else
-            outstrm << "\n";
+          outstrm << "\n";
 #endif
 
           //User defined processing of the results

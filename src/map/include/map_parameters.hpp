@@ -18,7 +18,9 @@ namespace skch
   {
     int kmerSize;                                     //kmer size for sketching
     int windowSize;                                   //window size used for sketching 
-    int minAlignLen;                                  //minimum alignment length which mashmap should guarantee to report
+    int segLength;                                    //For split mapping case, this represents the fragment length
+                                                      //for noSplit, it represents minimum read length to map
+                                                      
     int alphabetSize;                                 //alphabet size
     uint64_t referenceSize;                           //Approximate reference size
     float percentageIdentity;                         //user defined threshold for good similarity

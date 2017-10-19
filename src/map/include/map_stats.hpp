@@ -219,22 +219,16 @@ namespace skch
      * @param[in] k                 kmer size
      * @param[in] alphabetSize      alphabet size
      * @param[in] identity          mapping identity cut-off
-     * @param[in] minAlignLen       minimum sequence alignment length to compute
+     * @param[in] segmentLength     mashmap's internal minimum query sequence length
      * @param[in] lengthReference   reference length
-     * @param[in] split             boolean input for split read mapping
      * @return                      optimal window size for sketching
      */
     inline int recommendedWindowSize(double pValue_cutoff,
         int k, int alphabetSize,
         float identity,
-        int minAlignLen, uint64_t lengthReference,
-        bool split)
+        int segmentLength, uint64_t lengthReference)
     {
-      int lengthQuery = minAlignLen;
-
-      //fragments are half minAlignLen if split read mapping is enabled 
-      if(split)
-        lengthQuery = minAlignLen/2;  
+      int lengthQuery = segmentLength;
 
       //Push all the sketch values that we should try out in a vector
       //{1, 2, 5, 10, 20, 30...}

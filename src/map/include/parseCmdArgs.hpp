@@ -49,13 +49,13 @@ $ mashmap --sl reference_files_list.txt -q seq.fq [OPTIONS]");
     cmd.defineOption("queryList", "a file containing list of query files, one per line", ArgvParser::OptionRequiresValue);
     cmd.defineOptionAlternative("queryList","ql");
 
-    cmd.defineOption("minAlignLen", "minimum local alignment length to compute >=1000 [default : 10,000]\n\
-sequences shorter than minAlignLen will be ignored", ArgvParser::OptionRequiresValue);
-    cmd.defineOptionAlternative("minAlignLen","m");
+    cmd.defineOption("segLength", "mapping segment length [default : 5,000]\n\
+sequences shorter than segment length will be ignored", ArgvParser::OptionRequiresValue);
+    cmd.defineOptionAlternative("segLength","m");
 
-    cmd.defineOption("noSplit", "disable splitting input sequences during mapping [enabled by default]");
+    cmd.defineOption("noSplit", "disable splitting of input sequences during mapping [enabled by default]");
 
-    cmd.defineOption("perc_identity", "threshold for identity >=70 [default : 85]", ArgvParser::OptionRequiresValue);
+    cmd.defineOption("perc_identity", "threshold for identity [default : 85]", ArgvParser::OptionRequiresValue);
     cmd.defineOptionAlternative("perc_identity","pi");
 
     cmd.defineOption("threads", "count of threads for parallel execution [default : 1]", ArgvParser::OptionRequiresValue);
@@ -142,11 +142,12 @@ sequences shorter than minAlignLen will be ignored", ArgvParser::OptionRequiresV
     std::cout << "Query = " << parameters.querySequences << std::endl;
     std::cout << "Kmer size = " << parameters.kmerSize << std::endl;
     std::cout << "Window size = " << parameters.windowSize << std::endl;
-    std::cout << "Minimum alignment length = " << parameters.minAlignLen << (parameters.split ? " (read split allowed)":"") << std::endl;
+    std::cout << "Segment length = " << parameters.segLength << (parameters.split ? " (read split allowed)": " (read split disabled)") << std::endl;
     std::cout << "Alphabet = " << (parameters.alphabetSize == 4 ? "DNA" : "AA") << std::endl;
     std::cout << "Percentage identity threshold = " << parameters.percentageIdentity << "\%" << std::endl;
     std::cout << "Mapping output file = " << parameters.outFileName << std::endl;
     std::cout << "Filter mode = " << parameters.filterMode << " (1 = map, 2 = one-to-one, 3 = none)" << std::endl;
+    std::cout << "Execution threads  = " << parameters.threads << std::endl;
     std::cout << ">>>>>>>>>>>>>>>>>>" << std::endl;
   }
 
@@ -274,13 +275,13 @@ sequences shorter than minAlignLen will be ignored", ArgvParser::OptionRequiresV
         parameters.kmerSize = 5;
     }
 
-    if(cmd.foundOption("minAlignLen"))
+    if(cmd.foundOption("segLength"))
     {
-      str << cmd.optionValue("minAlignLen");
-      str >> parameters.minAlignLen;
+      str << cmd.optionValue("segLength");
+      str >> parameters.segLength;
       str.clear();
 
-      if(parameters.minAlignLen < 1000)
+      if(parameters.segLength < 1000)
       {
         std::cerr << "ERROR, skch::parseandSave, minimum local alignment length requirement should be >= 1000 bp.\n\
           This is because Mashmap is not efficient for computing short alignments.\n" << std::endl;
@@ -288,7 +289,7 @@ sequences shorter than minAlignLen will be ignored", ArgvParser::OptionRequiresV
       }
     }
     else
-      parameters.minAlignLen = 10000;
+      parameters.segLength = 5000;
 
     if(cmd.foundOption("perc_identity"))
     {
@@ -322,8 +323,7 @@ sequences shorter than minAlignLen will be ignored", ArgvParser::OptionRequiresV
     parameters.windowSize = skch::Stat::recommendedWindowSize(skch::fixed::pval_cutoff,
         parameters.kmerSize, parameters.alphabetSize,
         parameters.percentageIdentity,
-        parameters.minAlignLen, parameters.referenceSize,
-        parameters.split);
+        parameters.segLength, parameters.referenceSize);
 
     if(cmd.foundOption("output"))
     {
