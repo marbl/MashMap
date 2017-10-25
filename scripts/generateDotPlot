@@ -294,7 +294,7 @@ sub ParseMappings ($)
 {
     my $aref = shift;
 
-    print STDERR "Reading mashmap file $OPT_Mfile (use mummer -c)\n";
+    print STDERR "Reading mashmap file $OPT_Mfile\n";
 
     open (MFILE, "<$OPT_Mfile")
         or die "ERROR: Could not open $OPT_Mfile, $!\n";
