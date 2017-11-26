@@ -13,6 +13,7 @@
 #include <fstream>
 #include <zlib.h>  
 #include <cassert>
+#include <numeric>
 
 //Own includes
 #include "map/include/base_types.hpp"
