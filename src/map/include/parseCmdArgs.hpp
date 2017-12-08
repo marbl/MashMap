@@ -32,16 +32,16 @@ namespace skch
 Mashmap is an approximate long read or contig mapper based on Jaccard similarity\n\
 -----------------\n\
 Example usage: \n\
-$ mashmap -s ref.fa -q seq.fq [OPTIONS]\n\
-$ mashmap --sl reference_files_list.txt -q seq.fq [OPTIONS]");
+$ mashmap -r ref.fa -q seq.fq [OPTIONS]\n\
+$ mashmap --rl reference_files_list.txt -q seq.fq [OPTIONS]");
 
     cmd.setHelpOption("h", "help", "Print this help page");
 
-    cmd.defineOption("subject", "an input reference file (fasta/fastq)[.gz]", ArgvParser::OptionRequiresValue);
-    cmd.defineOptionAlternative("subject","s");
+    cmd.defineOption("ref", "an input reference file (fasta/fastq)[.gz]", ArgvParser::OptionRequiresValue);
+    cmd.defineOptionAlternative("ref","r");
 
-    cmd.defineOption("subjectList", "a file containing list of reference files, one per line", ArgvParser::OptionRequiresValue);
-    cmd.defineOptionAlternative("subjectList","sl");
+    cmd.defineOption("refList", "a file containing list of reference files, one per line", ArgvParser::OptionRequiresValue);
+    cmd.defineOptionAlternative("refList","rl");
 
     cmd.defineOption("query", "an input query file (fasta/fastq)[.gz]", ArgvParser::OptionRequiresValue);
     cmd.defineOptionAlternative("query","q");
@@ -51,7 +51,7 @@ $ mashmap --sl reference_files_list.txt -q seq.fq [OPTIONS]");
 
     cmd.defineOption("segLength", "mapping segment length [default : 5,000]\n\
 sequences shorter than segment length will be ignored", ArgvParser::OptionRequiresValue);
-    cmd.defineOptionAlternative("segLength","m");
+    cmd.defineOptionAlternative("segLength","s");
 
     cmd.defineOption("noSplit", "disable splitting of input sequences during mapping [enabled by default]");
 
@@ -168,7 +168,7 @@ sequences shorter than segment length will be ignored", ArgvParser::OptionRequir
       std::cerr << cmd.parseErrorDescription(result) << std::endl;
       exit(1);
     }
-    else if (!cmd.foundOption("subject") && !cmd.foundOption("subjectList"))
+    else if (!cmd.foundOption("ref") && !cmd.foundOption("refList"))
     {
       std::cerr << "ERROR, skch::parseandSave, Provide reference file(s)" << std::endl;
       exit(1);
@@ -182,11 +182,11 @@ sequences shorter than segment length will be ignored", ArgvParser::OptionRequir
     std::stringstream str;
 
     //Parse reference files
-    if(cmd.foundOption("subject"))
+    if(cmd.foundOption("ref"))
     {
       std::string ref;
 
-      str << cmd.optionValue("subject");
+      str << cmd.optionValue("ref");
       str >> ref;
 
       parameters.refSequences.push_back(ref);
@@ -195,7 +195,7 @@ sequences shorter than segment length will be ignored", ArgvParser::OptionRequir
     {
       std::string listFile;
 
-      str << cmd.optionValue("subjectList");
+      str << cmd.optionValue("refList");
       str >> listFile;
 
       parseFileList(listFile, parameters.refSequences);
@@ -281,9 +281,9 @@ sequences shorter than segment length will be ignored", ArgvParser::OptionRequir
       str >> parameters.segLength;
       str.clear();
 
-      if(parameters.segLength < 1000)
+      if(parameters.segLength < 500)
       {
-        std::cerr << "ERROR, skch::parseandSave, minimum segment length is required to be >= 1000 bp.\n\
+        std::cerr << "ERROR, skch::parseandSave, minimum segment length is required to be >= 500 bp.\n\
           This is because Mashmap is not designed for computing short local alignments.\n" << std::endl;
         exit(1);
       }
