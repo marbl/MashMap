@@ -24,6 +24,7 @@
 #include "common/kseq.h"
 #include "common/murmur3.h"
 #include "common/prettyprint.hpp"
+#include "common/sparsehash/dense_hash_map"
 
 KSEQ_INIT(gzFile, gzread)
 
@@ -74,13 +75,13 @@ namespace skch
        */
       std::vector< int > sequencesByFileInfo;
 
-      //Index for fast seed lookup
+      //Index for fast seed lookup (unordered_map)
       /*
        * [minimizer #1] -> [pos1, pos2, pos3 ...]
        * [minimizer #2] -> [pos1, pos2...]
        * ...
        */
-      using MI_Map_t = std::unordered_map< MinimizerMapKeyType, MinimizerMapValueType >;
+      using MI_Map_t = google::dense_hash_map< MinimizerMapKeyType, MinimizerMapValueType >;
       MI_Map_t minimizerPosLookupIndex;
 
       private:
@@ -214,6 +215,8 @@ namespace skch
       void index()
       {
         //Parse all the minimizers and push into the map
+        minimizerPosLookupIndex.set_empty_key(0);
+
         for(auto &e : minimizerIndex)
         {
           // [hash value -> info about minimizer]
