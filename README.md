@@ -39,7 +39,7 @@ For most of the use cases, default values should be appropriate. However, differ
 We provide a perl [script](scripts) for generating dot-plots to visualize mappings. It takes Mashmap's mapping output as its input. This script requires availability of gnuplot. Below is an example demonstrating mapping of [canu NA12878 human genome assembly](https://github.com/nanopore-wgs-consortium/NA12878/blob/master/Genome.md) (y-axis) to hg38 reference (x-axis).
 
 <p align="center">
-<img src="https://alurulab.cc.gatech.edu/sites/all/images/mashmap/dotplot_canu_hg38.png" height="500"/>
+<img src="https://1aaaa1f6-a-62cb3a1a-s-sites.googlegroups.com/site/chirgjain/readme-dotplot_canu_hg38.png?attachauth=ANoY7cpmO7nF1KXLjRr1GjRUeo5bK9DPHksxw9y5s5VQh4d7RJlM0JMJISeD6BTSeO_5kIiTU4-IRondnxNoPQADCT6tWu-9R-_FXR048gzmibcl_QSWtNgHISgMMkQPxtIXp8obli_0zVGIEN_KXTL-xUzAWJ9wQr8fwPNY-Ra51IZBfehJ9-mSUVdIkgL1bkc0_2wETGnT0plVJQdz_dSnBq-W2SxCDcxmdt6IyZLAmJLHAzkU04U%3D&attredirects=0" height="500"/>
 </p>
 
 ## Release
