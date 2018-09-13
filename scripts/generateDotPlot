@@ -781,9 +781,11 @@ sub WriteGP ($$)
     if ( $OPT_gpstatus == 0 ) {
         $P_LS = "set style line";
         $P_KEY = "unset key";
-        $P_FORMAT .= "\nset mouse format \"$TFORMAT\"";
-        $P_FORMAT .= "\nset mouse mouseformat \"$MFORMAT\"";
-        $P_FORMAT .= "\nset mouse clipboardformat \"$MFORMAT\"";
+        if ( $OPT_terminal eq $X11 ) {
+            $P_FORMAT .= "\nset mouse format \"$TFORMAT\"";
+            $P_FORMAT .= "\nset mouse mouseformat \"$MFORMAT\"";
+            $P_FORMAT .= "\nset mouse clipboardformat \"$MFORMAT\"";
+        }
     }
     else {
         $P_LS = "set linestyle";
