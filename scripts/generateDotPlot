@@ -573,7 +573,7 @@ sub PlotData ($$$)
         my ($refoff, $reflen, $refdir);
         my ($qryoff, $qrylen, $qrydir);
 
-        if ( defined (%$rref) ) {
+        if ( (%$rref) ) {
             #-- skip reference sequence or set atts from hash
             if ( !exists ($rref->{$idR}) ) { next; }
             else { ($refoff, $reflen, $refdir) = @{$rref->{$idR}}; }
@@ -583,7 +583,7 @@ sub PlotData ($$$)
             ($refoff, $reflen, $refdir) = (0, $lenR, 1);
         }
 
-        if ( defined (%$qref) ) {
+        if ( (%$qref) ) {
             #-- skip query sequence or set atts from hash
             if ( !exists ($qref->{$idQ}) ) { next; }
             else { ($qryoff, $qrylen, $qrydir) = @{$qref->{$idQ}}; }
@@ -663,7 +663,7 @@ sub PlotData ($$$)
     }
 
 
-    if ( !defined (%$rref) ) {
+    if ( !(%$rref) ) {
         if ( $ismultiref ) {
             print STDERR
                 "WARNING: Multiple ref sequences overlaid, try -R or -r\n";
@@ -673,7 +673,7 @@ sub PlotData ($$$)
         }
     }
 
-    if ( !defined (%$qref) ) {
+    if ( !(%$qref) ) {
         if ( $ismultiqry && !$OPT_coverage ) {
             print STDERR
                 "WARNING: Multiple qry sequences overlaid, try -Q, -q or -c\n";
@@ -781,9 +781,11 @@ sub WriteGP ($$)
     if ( $OPT_gpstatus == 0 ) {
         $P_LS = "set style line";
         $P_KEY = "unset key";
-        $P_FORMAT .= "\nset mouse format \"$TFORMAT\"";
-        $P_FORMAT .= "\nset mouse mouseformat \"$MFORMAT\"";
-        $P_FORMAT .= "\nset mouse clipboardformat \"$MFORMAT\"";
+        if ( $OPT_terminal eq $X11 ) {
+            $P_FORMAT .= "\nset mouse format \"$TFORMAT\"";
+            $P_FORMAT .= "\nset mouse mouseformat \"$MFORMAT\"";
+            $P_FORMAT .= "\nset mouse clipboardformat \"$MFORMAT\"";
+        }
     }
     else {
         $P_LS = "set linestyle";
