@@ -801,7 +801,7 @@ sub WriteGP ($$)
     my $border = 0;
 
     #-- terminal header and output
-    print GFILE "set terminal $P_TERM\n";
+    print GFILE "set terminal $P_TERM enhanced font '$FFACE,$FSIZE'\n";
 
     if ( defined $OPT_Pfile ) {
         print GFILE "set output \"$OPT_Pfile\"\n";
@@ -818,6 +818,7 @@ sub WriteGP ($$)
     }
     else {
         $xrange = 0;
+        print GFILE "set bmargin 5\n";
         print GFILE "set xtics rotate \( \\\n";
         foreach $xlabel ( sort { $rref->{$a}[0] <=> $rref->{$b}[0] } @refk ) {
             $xrange += $rref->{$xlabel}[1];
@@ -840,6 +841,7 @@ sub WriteGP ($$)
     }
     else {
         $yrange = 0;
+        print GFILE "set lmargin 5\n";
         print GFILE "set ytics \( \\\n";
         foreach $ylabel ( sort { $qref->{$a}[0] <=> $qref->{$b}[0] } @qryk ) {
             $yrange += $qref->{$ylabel}[1];
