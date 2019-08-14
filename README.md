@@ -1,5 +1,7 @@
 MashMap
 ========================================================================
+[![BioConda Install](https://img.shields.io/conda/dn/bioconda/mashmap.svg?style=flag&label=BioConda%20install)](https://anaconda.org/bioconda/mashmap)
+[![GitHub Downloads](https://img.shields.io/github/downloads/marbl/MashMap/total.svg?style=social&logo=github&label=Download)](https://github.com/marbl/MashMap/releases)
 
 MashMap implements a fast and approximate algorithm for computing local alignment boundaries between long DNA sequences. It can be useful for mapping genome assembly or long reads (PacBio/ONT) to reference genome(s). Given a minimum alignment length and an identity threshold for the desired local alignments, Mashmap computes alignment boundaries and identity estimates using *k*-mers. It does not compute the alignments explicitly, but rather estimates a *k*-mer based [Jaccard similarity](https://en.wikipedia.org/wiki/Jaccard_index) using a combination of [Minimizers](http://www.cs.princeton.edu/courses/archive/spr05/cos598E/bib/p76-schleimer.pdf) and [MinHash](https://en.wikipedia.org/wiki/MinHash). This is then converted to an estimate of sequence identity using the [Mash](http://mash.readthedocs.org) distance. An appropriate *k*-mer sampling rate is automatically determined using the given minimum local alignment length and identity thresholds. The efficiency of the algorithm improves as both of these thresholds are increased.
 
