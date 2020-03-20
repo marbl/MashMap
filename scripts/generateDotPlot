@@ -801,7 +801,7 @@ sub WriteGP ($$)
     my $border = 0;
 
     #-- terminal header and output
-    print GFILE "set terminal $P_TERM enhanced font '$FFACE,$FSIZE'\n";
+		print GFILE "set terminal $P_TERM\n";
 
     if ( defined $OPT_Pfile ) {
         print GFILE "set output \"$OPT_Pfile\"\n";
