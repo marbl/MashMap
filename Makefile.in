@@ -13,7 +13,7 @@ endif
 SOURCE_1=src/map/mash_map.cpp
 SOURCE_2=src/align/align.cpp
 
-all : mashmap 
+all : mashmap mashmap-align
 
 mashmap : 
 	$(CXX) $(CXXFLAGS) $(CPPFLAGS) $(SOURCE_1) -o mashmap @mathlib@ -lstdc++ -lz -lm -lpthread 
@@ -21,9 +21,9 @@ mashmap :
 mashmap-align : 
 	$(CXX) $(CXXFLAGS) $(CPPFLAGS) $(SOURCE_2) -o mashmap-align @mathlib@ -lstdc++ -lz -lm -lpthread 
 
-install : mashmap
+install : mashmap mashmap-align
 	mkdir -p @prefix@/bin/
-	cp `pwd`/mashmap @prefix@/bin/
+	cp `pwd`/mashmap `pwd`/mashmap-align @prefix@/bin/
 
 clean :
 	-rm -f mashmap
