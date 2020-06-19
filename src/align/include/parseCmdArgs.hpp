@@ -55,7 +55,7 @@ $ mashmap-align -s ref.fa -q seq.fq --mappingFile mashmap.out --pi 80 [OPTIONS]"
     cmd.defineOption("threads", "count of threads for parallel execution [default : 1]", ArgvParser::OptionRequiresValue);
     cmd.defineOptionAlternative("threads","t");
 
-    cmd.defineOption("output", "output file name [default : mashmap.out.sam]", ArgvParser::OptionRequiresValue);
+    cmd.defineOption("output", "output file name [default : mashmap.out.paf]", ArgvParser::OptionRequiresValue);
     cmd.defineOptionAlternative("output","o");
   }
 
@@ -177,7 +177,7 @@ $ mashmap-align -s ref.fa -q seq.fq --mappingFile mashmap.out --pi 80 [OPTIONS]"
       str.clear();
     }
     else
-      parameters.samOutputFile = "mashmap.out.sam";
+      parameters.samOutputFile = "mashmap.out.paf";
 
     str.clear();
 

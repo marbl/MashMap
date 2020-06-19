@@ -15,10 +15,10 @@ SOURCE_2=src/align/align.cpp
 
 all : mashmap mashmap-align
 
-mashmap : 
+mashmap : src/map/* src/map/*/*
 	$(CXX) $(CXXFLAGS) $(CPPFLAGS) $(SOURCE_1) -o mashmap @mathlib@ -lstdc++ -lz -lm -lpthread 
 
-mashmap-align : 
+mashmap-align : src/align/* src/align/*/*
 	$(CXX) $(CXXFLAGS) $(CPPFLAGS) $(SOURCE_2) -o mashmap-align @mathlib@ -lstdc++ -lz -lm -lpthread 
 
 install : mashmap mashmap-align

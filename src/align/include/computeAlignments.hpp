@@ -291,10 +291,12 @@ namespace align
         {
           char* cigar = edlibAlignmentToCigar(result.alignment, result.alignmentLength, EDLIB_CIGAR_STANDARD);
 
-          outstrm << mappingRecordLine 
-            << " " << result.editDistance * 1.0/result.alignmentLength
-            << " " << cigar 
-            << "\n";
+          outstrm << mappingRecordLine
+                  << "\t" << "ed:i:" << result.editDistance
+                  << "\t" << "al:i" << result.alignmentLength
+                  << "\t" << "ad:f:" << result.editDistance * 1.0/result.alignmentLength
+                  << "\t" << "cg:Z:" << cigar
+                  << "\n";
 
           free(cigar);
         }
