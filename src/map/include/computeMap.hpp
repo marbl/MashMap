@@ -505,9 +505,9 @@ namespace skch
               {
                 res.queryLen = Q.len;
                 res.refStartPos = l2.meanOptimalPos ;
-                res.refEndPos = l2.meanOptimalPos + Q.len - 1;
+                res.refEndPos = l2.meanOptimalPos + Q.len;
                 res.queryStartPos = 0;
-                res.queryEndPos = Q.len - 1;
+                res.queryEndPos = Q.len;
                 res.refSeqId = l2.seqId;
                 res.querySeqId = Q.seqCounter;
                 res.nucIdentity = nucIdentity;
