@@ -265,6 +265,8 @@ namespace align
                           std::string qSeqId = seq->name.s;
 
                           skch::CommonFunc::makeUpperCase(seq->seq.s, len);
+                          // todo maybe this should change to some kind of unique pointer?
+                          // something where we can GC it when we're done aligning to it
                           std::string qSequence = seq->seq.s;
 
                           //Check if all mapping records are processed already
@@ -287,8 +289,6 @@ namespace align
                           }
                           else
                           {
-                              // XXX TODO
-                              //this->doAlignment(currentRecord, mappingRecordLine, qSequence, outstrm);
                               auto q = new seq_record_t(currentRecord, mappingRecordLine, qSequence);
                               seq_queue.push(q);
                           }
@@ -305,8 +305,6 @@ namespace align
                               }
                               else
                               {
-                                  // XXX TODO
-                                  //this->doAlignment(currentRecord, mappingRecordLine, qSequence, outstrm);
                                   auto q = new seq_record_t(currentRecord, mappingRecordLine, qSequence);
                                   seq_queue.push(q);
                               }
@@ -366,7 +364,11 @@ namespace align
                                   doAlignment(rec->currentRecord,
                                               rec->mappingRecordLine,
                                               rec->qSequence));
-                          paf_queue.push(paf_rec);
+                          if (paf_rec->size()) {
+                              paf_queue.push(paf_rec);
+                          } else {
+                              delete paf_rec;
+                          }
                           delete rec;
                       } else {
                           std::this_thread::sleep_for(100ns);
