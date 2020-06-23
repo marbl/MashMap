@@ -71,17 +71,21 @@ namespace skch
          * @param[in/out]   L             container with mappings
          */
         template <typename Type>
-          inline void markGood(Type &L)
+        inline void markGood(Type &L, int secondaryToKeep)
           {
             //first segment in the set order
             auto beg = L.begin();
 
+            // count how many secondary alignments we keep
+            int kept = 0;
+
             for(auto it = L.begin(); it != L.end(); it++)
             {
-              if(this->greater_score(*beg, *it) || vec[*it].discard == 0) 
-                break;
+                if ((this->greater_score(*beg, *it) || vec[*it].discard == 0) && ++kept > secondaryToKeep) {
+                    break;
+                }
 
-              vec[*it].discard = 0;
+                vec[*it].discard = 0;
             }
           }
       };
@@ -92,7 +96,7 @@ namespace skch
        * @param[in/out] readMappings  Mappings computed by Mashmap
        */
       template <typename VecIn>
-        void liFilterAlgorithm(VecIn &readMappings)
+      void liFilterAlgorithm(VecIn &readMappings, int secondaryToKeep)
         {
           if(readMappings.size() <= 1)
             return;
@@ -140,7 +144,7 @@ namespace skch
                                     });
 
             //mark mappings as good
-            obj.markGood(bst);
+            obj.markGood(bst, secondaryToKeep);
 
             it = it2;
           }
@@ -156,11 +160,11 @@ namespace skch
        * @param[in/out] readMappings  Mappings computed by Mashmap (post merge step)
        */
       template <typename VecIn>
-        void filterMappings(VecIn &readMappings)
-        {
+      void filterMappings(VecIn &readMappings, int secondaryToKeep)
+      {
           //Apply the main filtering algorithm to ensure best mappings across complete axis
-          liFilterAlgorithm(readMappings);
-        }
+          liFilterAlgorithm(readMappings, secondaryToKeep);
+      }
     } //End of query namespace
 
     namespace ref

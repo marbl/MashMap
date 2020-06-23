@@ -277,7 +277,7 @@ namespace skch
         //filter mappings best over query sequence axis
         if(param.filterMode == filter::MAP || param.filterMode == filter::ONETOONE)
         {
-          skch::Filter::query::filterMappings(output->readMappings);
+            skch::Filter::query::filterMappings(output->readMappings, param.secondaryToKeep);
         }
 
         //Make sure mapping boundary don't exceed sequence lengths

@@ -73,6 +73,9 @@ sequences shorter than segment length will be ignored", ArgvParser::OptionRequir
 'none' disables filtering", 
                     ArgvParser::OptionRequiresValue);
     cmd.defineOptionAlternative("filter_mode", "f");
+
+    cmd.defineOption("secondaries", "number of secondary mappings in 'map' filter_mode [default : 1]", ArgvParser::OptionRequiresValue);
+    cmd.defineOptionAlternative("secondaries", "n");
   }
 
   /**
@@ -334,6 +337,16 @@ sequences shorter than segment length will be ignored", ArgvParser::OptionRequir
     else
       parameters.outFileName = "mashmap.out";
 
+    if(cmd.foundOption("secondaries"))
+    {
+      str << cmd.optionValue("secondaries");
+      str >> parameters.secondaryToKeep;
+      str.clear();
+    }
+    else
+    {
+      parameters.secondaryToKeep = 1;
+    }
 
     printCmdOptions(parameters);
 
