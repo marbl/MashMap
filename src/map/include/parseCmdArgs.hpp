@@ -74,7 +74,7 @@ sequences shorter than segment length will be ignored", ArgvParser::OptionRequir
                     ArgvParser::OptionRequiresValue);
     cmd.defineOptionAlternative("filter_mode", "f");
 
-    cmd.defineOption("secondaries", "number of secondary mappings in 'map' filter_mode [default : 1]", ArgvParser::OptionRequiresValue);
+    cmd.defineOption("secondaries", "number of secondary mappings in 'map' filter_mode [default : 0]", ArgvParser::OptionRequiresValue);
     cmd.defineOptionAlternative("secondaries", "n");
   }
 
@@ -345,7 +345,7 @@ sequences shorter than segment length will be ignored", ArgvParser::OptionRequir
     }
     else
     {
-      parameters.secondaryToKeep = 1;
+      parameters.secondaryToKeep = 0;
     }
 
     printCmdOptions(parameters);

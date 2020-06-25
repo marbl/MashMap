@@ -81,11 +81,12 @@ namespace skch
 
             for(auto it = L.begin(); it != L.end(); it++)
             {
-                if ((this->greater_score(*beg, *it) || vec[*it].discard == 0) && ++kept > secondaryToKeep) {
+                if ((this->greater_score(*beg, *it) || vec[*it].discard == 0) && kept > secondaryToKeep) {
                     break;
                 }
 
                 vec[*it].discard = 0;
+                ++kept;
             }
           }
       };
