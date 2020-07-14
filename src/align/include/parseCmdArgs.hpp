@@ -52,10 +52,13 @@ $ mashmap-align -s ref.fa -q seq.fq --mappingFile mashmap.out --pi 80 [OPTIONS]"
     cmd.defineOption("perc_identity", "edlib threshold for alignment identity [0-100]", ArgvParser::OptionRequiresValue | ArgvParser::OptionRequired);
     cmd.defineOptionAlternative("perc_identity","pi");
 
+    cmd.defineOption("bandwidth", "edlib maximum bandwidth [default: 0 / maximum computed from perc_identity]", ArgvParser::OptionRequiresValue);
+    cmd.defineOptionAlternative("bandwidth","b");
+
     cmd.defineOption("threads", "count of threads for parallel execution [default : 1]", ArgvParser::OptionRequiresValue);
     cmd.defineOptionAlternative("threads","t");
 
-    cmd.defineOption("output", "output file name [default : mashmap.out.sam]", ArgvParser::OptionRequiresValue);
+    cmd.defineOption("output", "output file name [default : mashmap.out.paf]", ArgvParser::OptionRequiresValue);
     cmd.defineOptionAlternative("output","o");
   }
 
@@ -70,6 +73,7 @@ $ mashmap-align -s ref.fa -q seq.fq --mappingFile mashmap.out --pi 80 [OPTIONS]"
     std::cout << "Query = " << parameters.querySequences << std::endl;
     std::cout << "Mapping file = " << parameters.mashmapPafFile << std::endl;
     std::cout << "Edlib identity cut-off = " << parameters.percentageIdentity << "\%" << std::endl;
+    std::cout << "Edlib bandwidth cut-off = " << parameters.bandwidth << std::endl;
     std::cout << "Alignment output file = " << parameters.samOutputFile << std::endl;
     std::cout << ">>>>>>>>>>>>>>>>>>" << std::endl;
   }
@@ -168,6 +172,14 @@ $ mashmap-align -s ref.fa -q seq.fq --mappingFile mashmap.out --pi 80 [OPTIONS]"
     else
       parameters.threads = 1;
 
+    if(cmd.foundOption("bandwidth"))
+    {
+      str << cmd.optionValue("bandwidth");
+      str >> parameters.bandwidth;
+    }
+    else
+      parameters.bandwidth = 0;
+
     str.clear();
 
     if(cmd.foundOption("output"))
@@ -177,7 +189,7 @@ $ mashmap-align -s ref.fa -q seq.fq --mappingFile mashmap.out --pi 80 [OPTIONS]"
       str.clear();
     }
     else
-      parameters.samOutputFile = "mashmap.out.sam";
+      parameters.samOutputFile = "mashmap.out.paf";
 
     str.clear();
 

@@ -277,7 +277,7 @@ namespace skch
         //filter mappings best over query sequence axis
         if(param.filterMode == filter::MAP || param.filterMode == filter::ONETOONE)
         {
-          skch::Filter::query::filterMappings(output->readMappings);
+            skch::Filter::query::filterMappings(output->readMappings, param.secondaryToKeep);
         }
 
         //Make sure mapping boundary don't exceed sequence lengths
@@ -505,9 +505,9 @@ namespace skch
               {
                 res.queryLen = Q.len;
                 res.refStartPos = l2.meanOptimalPos ;
-                res.refEndPos = l2.meanOptimalPos + Q.len - 1;
+                res.refEndPos = l2.meanOptimalPos + Q.len;
                 res.queryStartPos = 0;
-                res.queryEndPos = Q.len - 1;
+                res.queryEndPos = Q.len;
                 res.refSeqId = l2.seqId;
                 res.querySeqId = Q.seqCounter;
                 res.nucIdentity = nucIdentity;
@@ -740,6 +740,10 @@ namespace skch
 
               it->queryEndPos = std::max( it->queryEndPos, e.queryEndPos);
               it->refEndPos = std::max( it->refEndPos, e.refEndPos);
+
+              it->blockLength = std::max(it->refEndPos - it->refStartPos, it->queryEndPos - it->queryStartPos);
+              it->approxMatches = std::round(it->nucIdentity * it->blockLength / 100.0);
+
             });
 
             //Mean identity of all mappings in the chain
@@ -818,16 +822,22 @@ namespace skch
         {
           assert(e.refSeqId < this->refSketch.metadata.size());
 
+          float fakeMapQ = std::round(-10.0 * std::log10(1-(e.nucIdentity/100)));
+          if (std::isinf(fakeMapQ)) fakeMapQ = 255;
+
           outstrm  << (param.filterMode == filter::ONETOONE ? qmetadata[e.querySeqId].name : queryName)
-            << " " << e.queryLen 
-            << " " << e.queryStartPos
-            << " " << e.queryEndPos
-            << " " << (e.strand == strnd::FWD ? "+" : "-") 
-            << " " << this->refSketch.metadata[e.refSeqId].name
-            << " " << this->refSketch.metadata[e.refSeqId].len
-            << " " << e.refStartPos 
-            << " " << e.refEndPos
-            << " " << e.nucIdentity;
+                   << "\t" << e.queryLen 
+                   << "\t" << e.queryStartPos
+                   << "\t" << e.queryEndPos
+                   << "\t" << (e.strand == strnd::FWD ? "+" : "-") 
+                   << "\t" << this->refSketch.metadata[e.refSeqId].name
+                   << "\t" << this->refSketch.metadata[e.refSeqId].len
+                   << "\t" << e.refStartPos 
+                   << "\t" << e.refEndPos
+                   << "\t" << e.approxMatches
+                   << "\t" << e.blockLength
+                   << "\t" << fakeMapQ
+                   << "\t" << "ni:i:" << e.nucIdentity;
 
 #ifdef DEBUG
           outstrm << std::endl;
