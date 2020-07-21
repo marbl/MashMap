@@ -47,7 +47,7 @@ with open(sys.argv[1]) as f:
 		end2 = int(rowElements[ENDCOL2])
 		identity = float(rowElements[IDENTITY])
 
-		if (chromosome1 != chromosome2 or abs(start1 - start2) >= int(sys.argv[2])):
+		if (chromosome1 != chromosome2 or (abs(start1 - start2) >= 1.5 * int(sys.argv[2]) and abs(end1 - end2) >= 1.5 * int(sys.argv[2]))):
 			if (end1 - start1 + 1 >= int(sys.argv[2]) and identity + 1 >= float(sys.argv[3])):	#added one to identity for sensitivity
 				repeatList.append((chromosome1, start1, end1))
 
