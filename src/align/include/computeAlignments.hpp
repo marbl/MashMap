@@ -77,8 +77,7 @@ namespace align
 #endif
 
           //Open the file using kseq
-          FILE *file = fopen(fileName.c_str(), "r");
-          gzFile fp = gzdopen(fileno(file), "r");
+          gzFile fp = gzopen(fileName.c_str(), "r");
           kseq_t *seq = kseq_init(fp);
 
 
@@ -100,7 +99,6 @@ namespace align
 
           kseq_destroy(seq);  
           gzclose(fp); //close the file handler 
-          fclose(file);
         }
       }
 
@@ -118,8 +116,7 @@ namespace align
 #endif
 
           //Open the file using kseq
-          FILE *file = fopen(fileName.c_str(), "r");
-          gzFile fp = gzdopen(fileno(file), "r");
+          gzFile fp = gzopen(fileName.c_str(), "r");
           kseq_t *seq = kseq_init(fp);
 
           //Open mashmap output file
@@ -183,7 +180,6 @@ namespace align
 
           kseq_destroy(seq);  
           gzclose(fp); //close the file handler 
-          fclose(file);
         }
       }
 

@@ -120,8 +120,7 @@ namespace skch
         for(const auto &fileName : param.querySequences)
         {
           //Open the file using kseq
-          FILE *file = fopen(fileName.c_str(), "r");
-          gzFile fp = gzdopen(fileno(file), "r");
+          gzFile fp = gzopen(fileName.c_str(), "r");
           kseq_t *seq = kseq_init(fp);
 
 #ifdef DEBUG
