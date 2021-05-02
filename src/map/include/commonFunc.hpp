@@ -150,9 +150,9 @@ namespace skch
               Q.pop_back();
 
             //Push currentKmer and position to back of the queue
-            //0 indicates the dummy window # (will be updated later)
+            //-1 indicates the dummy window # (will be updated later)
             Q.push_back( std::make_pair(
-                  MinimizerInfo{currentKmer, seqCounter, 0, currentStrand},
+                  MinimizerInfo{currentKmer, seqCounter, -1, currentStrand},
                   i)); 
 
             //Select the minimizer from Q and put into index
