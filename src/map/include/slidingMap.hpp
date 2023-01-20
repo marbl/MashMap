@@ -15,6 +15,7 @@
 #include "map/include/base_types.hpp"
 
 //External includes
+#include "assert.hpp"
 
 namespace skch
 {
@@ -28,13 +29,13 @@ namespace skch
 
       private:
 
-        //Metadata for the minimizers saved in sliding ordered map during L2 stage
+        //Metadata for the minmers saved in sliding ordered map during L2 stage
         struct slidingMapContainerValueType
         {
-          offset_t wposQ;                   //wpos and strand of minimizers in the query
-          strand_t strandQ;
-          offset_t wposR;                   //wpos and strand of minimizers in the reference
-          strand_t strandR;
+          unsigned int freq;
+          strand_t q_strand;
+          strand_t r_strand;
+          bool is_query_minmer;
         };
 
         //Container type for saving read sketches during L1 and L2 both
@@ -56,28 +57,28 @@ namespace skch
         //Iterator pointing to the smallest 's'th element in the map
         typename MapType::iterator pivot;
 
-        //Label status while inserting reference minimizer
+        //Label status while inserting reference minmer
         enum IN : int
         {
-          //reference minimizer is inserted into map as a new map entry
+          //reference minmer is inserted into map as a new map entry
           UNIQ = 1,
 
-          //reference minimizer is coupled with a query minimizer, 
-          //previously, there was no ref. minimizer at this entry
+          //reference minmer is coupled with a query minmer, 
+          //previously, there was no ref. minmer at this entry
           CPLD = 2, 
 
-          //ref. minimizer just revises the hash position of already 
-          //existing reference minimizer
+          //ref. minmer just revises the hash position of already 
+          //existing reference minmer
           REV = 3
         };  
 
-        //Label status while deleting reference minimizer
+        //Label status while deleting reference minmer
         enum OUT : int
         {
           //entry in the map is deleted
           DEL = 1,
 
-          //just the reference minimizer is updated to null
+          //just the reference minmer is updated to null
           UPD = 2,
 
           //Nothing changed in the map
@@ -90,6 +91,9 @@ namespace skch
         //Updated after insert or delete operation on map 
         int sharedSketchElements;
 
+        // Count of strand votes
+        int strand_votes;
+
 
         //Delete default constructor
         SlideMapper() = delete;
@@ -101,7 +105,8 @@ namespace skch
         SlideMapper(Q_Info &Q_) :
           Q(Q_),
           pivot(this->slidingWindowMinhashes.end()),
-          sharedSketchElements(0)
+          sharedSketchElements(0),
+          strand_votes(0)
         {
           this->init();
         }
@@ -109,22 +114,18 @@ namespace skch
       private:
 
         /**
-         * @brief       Fills map with minimum 's' minimizers in the query
+         * @brief       Fills map with minimum 's' minmers in the query
          */
         inline void init()
         {
           //Range of sketch in query
-          //Assuming unique query minimizers were placed at the start during L1 mapping
-          auto uniqEndIter = std::next(Q.minimizerTableQuery.begin(), Q.sketchSize);
-
-          //Insert query sketch elements to map
-          for(auto it = Q.minimizerTableQuery.begin(); it != uniqEndIter; it++)
+          for(auto it = Q.minmerTableQuery.begin(); it != Q.minmerTableQuery.end(); it++)
           {
-            this->slidingWindowMinhashes.emplace_hint(slidingWindowMinhashes.end(), it->hash, slidingMapContainerValueType{it->wpos, it->strand, NAPos, 0});
+            this->slidingWindowMinhashes.emplace_hint(slidingWindowMinhashes.end(), it->hash, slidingMapContainerValueType {0, it->strand, 0, true});
           }
 
           //Point pivot to last element in the map
-          this->pivot = std::next(this->slidingWindowMinhashes.begin(), Q.sketchSize - 1);
+          this->pivot = std::prev(this->slidingWindowMinhashes.end());
 
           //Current count of shared sketch elements is zero
           this->sharedSketchElements = 0;
@@ -132,155 +133,140 @@ namespace skch
 
       public:
 
-        /**
-         * @brief               insert a minimizer from the reference sequence into the map
-         * @param[in]   m       reference minimizer to insert
-         */
-        inline void insert_ref(MIIter_t m)
+        inline void insert_minmer(const skch::MinmerInfo& mi)
         {
-          hash_t hashVal = m->hash;
+          const hash_t hashVal = mi.hash;
           int status;
 
           //if hash doesn't exist in the map, add to it
           if(slidingWindowMinhashes.find(hashVal) == slidingWindowMinhashes.end())
           {
-            slidingWindowMinhashes[hashVal] = slidingMapContainerValueType{this->NAPos, 0, m->wpos, m->strand};   //add the hash to window
+            slidingWindowMinhashes[hashVal] = slidingMapContainerValueType {1, 0, 0, false};   //add the hash to window
             status = IN::UNIQ;
+            //std::cout << "Unique insert " << mi.hash << " @ " << mi.wpos << std::endl; 
           }
           else
           {
-            status = (slidingWindowMinhashes[hashVal].wposR == NAPos) ? IN::CPLD 
+            status = (slidingWindowMinhashes[hashVal].is_query_minmer && slidingWindowMinhashes[hashVal].freq == 0) ? IN::CPLD 
               : IN::REV;
+            if (status == IN::CPLD) {
+              //std::cout << "Pairing " << mi.hash << " @ " << mi.wpos << std::endl; 
+            }
 
             //if hash already exists in the map, just revise it
-            slidingWindowMinhashes[hashVal].wposR = m->wpos;
-            slidingWindowMinhashes[hashVal].strandR = m->strand;
+            slidingWindowMinhashes[hashVal].freq += 1;
           }
 
-          updateCountersAfterInsert(status, m);
+          updateCountersAfterInsert(status, mi);
 
-          assert(this->sharedSketchElements >= 0);
-          assert(this->sharedSketchElements <= Q.sketchSize);
+          DEBUG_ASSERT(std::distance(slidingWindowMinhashes.begin(), pivot) == Q.sketchSize - 1);
+          DEBUG_ASSERT(this->sharedSketchElements >= 0);
+          DEBUG_ASSERT(this->sharedSketchElements <= Q.sketchSize);
         }
 
         /**
-         * @brief               delete a minimizer from the reference sequence from the map
-         * @param[in]   m       reference minimizer to remove
+         * @brief               delete a minmer from the reference sequence from the map
+         * @param[in]   m       reference minmer to remove
          */
-        inline void delete_ref(MIIter_t m)
+        void delete_minmer(const skch::MinmerInfo& mi)
         {
-          hash_t hashVal = m->hash;
           int status;
+          const hash_t hashVal = mi.hash;
           bool pivotDeleteCase = false;
           
-          assert(this->slidingWindowMinhashes.find(hashVal) != this->slidingWindowMinhashes.end());
+          //DEBUG_ASSERT(this->slidingWindowMinhashes.find(hashVal) != this->slidingWindowMinhashes.end(), "Can't find hash to delete", hashVal);
+          // End point may not have had an open point
+          if (this->slidingWindowMinhashes.find(hashVal) == this->slidingWindowMinhashes.end()) {
+              return;
+          }
 
-          //This hashVal may exist with different wpos from 
-          //reference, do nothing in that case
-          
-          if(this->slidingWindowMinhashes[hashVal].wposR == m->wpos)
+          this->slidingWindowMinhashes[hashVal].freq -= 1;
+          if (this->slidingWindowMinhashes[hashVal].freq > 0) {
+              return;
+          }
+
+          if(!this->slidingWindowMinhashes[hashVal].is_query_minmer)
           {
-            if(this->slidingWindowMinhashes[hashVal].wposQ == NAPos)
+            //Handle pivot deletion as a separate case
+            if(hashVal == pivot->first)
             {
-              //Handle pivot deletion as a separate case
-              if(this->slidingWindowMinhashes.find(hashVal) == pivot)
+              pivot++;
+              if(pivot->second.is_query_minmer && pivot->second.freq > 0)
               {
-                pivot++;
+                //std::cout << "Special pivot case\n";
+                if (this->pivot->second.r_strand == 0) {
+                  //std::cout << "ERROR\n";
+                }
 
-                if( (this->pivot->second).wposQ != NAPos && (this->pivot->second).wposR != NAPos)
-                  this->sharedSketchElements += 1;
-
-                pivotDeleteCase = true;
+                this->sharedSketchElements += 1;
+                this->strand_votes += this->pivot->second.r_strand * this->pivot->second.q_strand;
               }
+              pivotDeleteCase = true;
+            }
 
-              this->slidingWindowMinhashes.erase(hashVal);              //Remove the entry from the map
-              status = OUT::DEL; 
-            }
-            else
-            {
-              this->slidingWindowMinhashes[hashVal].wposR = NAPos;      //Just mark the reference hash absent
-              status = OUT::UPD; 
-            }
+            //std::cout << "Removing " << mi.hash <<  " @ " << mi.wpos << std::endl; 
+            this->slidingWindowMinhashes.erase(hashVal);              //Remove the entry from the map
+            status = OUT::DEL; 
           }
           else
           {
-            status = OUT::NOOP;
+            //std::cout << "Unpairing " << mi.hash << " @ " << mi.wpos << std::endl; 
+            status = OUT::UPD; 
           }
 
-          if(!pivotDeleteCase) updateCountersAfterDelete(status, m);
+          if(!pivotDeleteCase) 
+            updateCountersAfterDelete(status, mi);
 
-          assert(this->sharedSketchElements >= 0);
-          assert(this->sharedSketchElements <= Q.sketchSize);
+          DEBUG_ASSERT(std::distance(slidingWindowMinhashes.begin(), pivot) == Q.sketchSize - 1);
+          DEBUG_ASSERT(this->sharedSketchElements >= 0);
+          DEBUG_ASSERT(this->sharedSketchElements <= Q.sketchSize);
         }
 
-        /**
-         * @brief               insert a range of minimizers from the reference sequence into the map
-         * @param[in]   begin   begin iterator
-         * @param[in]   end     end iterator
-         */
-        inline void insert_ref(MIIter_t begin, MIIter_t end)
-        {
-          for(auto it = begin; it != end; it++)
-            this->insert_ref(it);
-        }
-
-        /**
-         * @brief       compute strand consensus and unique reference hashes
-         * @param[out]  strandVotes
-         * @param[out]  uniqueRefHashes
-         */
-        inline void computeStatistics(int &strandVotes, int &uniqueRefHashes)
-        {
-          int uniqueHashes = 0;
-          strandVotes = uniqueRefHashes = 0;
-
-          //Iterate over map
-          for (auto it = this->slidingWindowMinhashes.cbegin(); it != this->slidingWindowMinhashes.cend(); ++it)
-          {
-            uniqueHashes++;
-
-            //Fetch the value in map
-            auto m = it->second;
-
-            if(uniqueHashes <= Q.sketchSize && m.wposQ != this->NAPos && m.wposR != this->NAPos)
-            {
-              strandVotes += m.strandQ * m.strandR; //Assuming FWD=1, BWD=-1
-            }
-
-            //Check if minimizer occurs comes from the reference
-            if(m.wposR != this->NAPos)
-              uniqueRefHashes++;
-          }
-        }
 
       private:
 
         /**
          * @brief             logic to update internal counters after insert to map
          * @param[in] status  insert status
-         * @param[in] m       reference minimizer that was inserted
+         * @param[in] m       reference minmer that was inserted
          */
-        inline void updateCountersAfterInsert(int status, MIIter_t m)
+        void updateCountersAfterInsert(int status, const skch::MinmerInfo& mi)
         {
+          hash_t hash = mi.hash;
           //Revise internal counters
-          if(m->hash <= this->pivot->first)
+          if(hash <= this->pivot->first)
           {
             if(status == IN::CPLD)
             {
               //Increase count of shared sketch elements by 1
               this->sharedSketchElements += 1;
+              this->slidingWindowMinhashes[hash].r_strand = mi.strand;
+              if (this->slidingWindowMinhashes[hash].r_strand == 0) {
+                //std::cout << hash <<  " ERROR3\n";
+              }
+              this->strand_votes += this->slidingWindowMinhashes[hash].q_strand * mi.strand;
             }
             else if(status == IN::UNIQ)
             {
-              //Pivot needs to be decremented
-              if( (this->pivot->second).wposQ != NAPos && (this->pivot->second).wposR != NAPos)
-                this->sharedSketchElements -= 1;
+              if (mi.hash < pivot->first) {
+                if(this->pivot->second.is_query_minmer && this->pivot->second.freq > 0) {
+                  this->sharedSketchElements -= 1;
+                  this->strand_votes -= this->pivot->second.r_strand * this->pivot->second.q_strand;
+                }
 
-              std::advance(this->pivot, -1);
+
+                //Pivot needs to be decremented
+                std::advance(this->pivot, -1);
+              }
             }
             else if(status == IN::REV)
             {
               //Do nothing
+            }
+          } else {
+            if(status == IN::CPLD)
+            {
+              this->slidingWindowMinhashes[hash].r_strand = mi.strand;
             }
           }
         }
@@ -288,25 +274,33 @@ namespace skch
         /**
          * @brief             logic to update internal counters after delete to map
          * @param[in] status  insert status
-         * @param[in] m       reference minimizer that was inserted
+         * @param[in] m       reference minmer that was inserted
          */
-        inline void updateCountersAfterDelete(int status, MIIter_t m)
+        void updateCountersAfterDelete(int status, const skch::MinmerInfo& mi)
         {
           //Revise internal counters
-          if(m->hash <= this->pivot->first)
+          if(mi.hash <= this->pivot->first)
           {
             if(status == OUT::UPD)
             {
               //Decrease count of shared sketch elements by 1
               this->sharedSketchElements -= 1;
+              this->strand_votes -= this->slidingWindowMinhashes[mi.hash].q_strand * this->slidingWindowMinhashes[mi.hash].r_strand;
+              this->slidingWindowMinhashes[mi.hash].r_strand = 0;
             }
             else if(status == OUT::DEL)
             {
               //Pivot needs to be advanced
               std::advance(this->pivot, 1);
 
-              if( (this->pivot->second).wposQ != NAPos && (this->pivot->second).wposR != NAPos)
+              if(this->pivot->second.is_query_minmer && this->pivot->second.freq > 0)
+              {
                 this->sharedSketchElements += 1;
+                this->strand_votes += pivot->second.q_strand * pivot->second.r_strand;
+                if (this->pivot->second.r_strand == 0) {
+                  //std::cout << pivot->first <<  "ERROR2\n";
+                }
+              }
             }
             else if(status == OUT::NOOP)
             {
@@ -314,6 +308,7 @@ namespace skch
             }
           }
         }
+
 
     };
 }

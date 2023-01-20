@@ -23,3 +23,6 @@ autoParam
 Makefile
 configure
 *.cache
+
+#Scripts (for now)
+scripts/*
