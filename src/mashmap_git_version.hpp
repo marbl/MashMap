@@ -1,1 +1,1 @@
-#define MASHMAP_GIT_VERSION "v2.0-16-g74ff338"
+#define MASHMAP_GIT_VERSION "v2.0-17-g1ee088b"

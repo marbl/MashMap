@@ -142,8 +142,8 @@ namespace skch
           sketchProbs[ss][0][0] = 1;
 
           //TODO parameterize
-          float deltaANI = .01;
-          float confidence = 0.001;
+          float deltaANI = param.ANIDiff;
+          float confidence = 1 - param.ANIDiffConf;
 
           for (auto cmax = 1; cmax <= param.sketchSize; cmax++) 
           {
@@ -179,6 +179,9 @@ namespace skch
             DEBUG_ASSERT(sketchCutoffs[ss][overlap] <= overlap);
           }
         }
+        //for (auto overlap = 0; overlap <= param.sketchSize; overlap++) {
+          //std::cerr << overlap << ":\t" << sketchCutoffs[param.sketchSize][overlap] << std::endl;
+        //}
       }
 
       /**
@@ -715,51 +718,53 @@ namespace skch
           // Only necessary when windowLen != 0.
           std::unordered_map<hash_t, int> hash_to_freq;
           
-          while (leadingIt != intervalPoints.end())
-          {
-            // Catch the trailing iterator up to the leading iterator - windowLen
-            while (
-                trailingIt != intervalPoints.end() 
-                && ((trailingIt->seqId == leadingIt->seqId && trailingIt->pos <= leadingIt->pos - windowLen)
-                  || trailingIt->seqId < leadingIt->seqId))
+          if (param.stage1_topANI_filter) {
+            while (leadingIt != intervalPoints.end())
             {
-              if (trailingIt->side == side::CLOSE) {
-                if (windowLen != 0)
-                  hash_to_freq[trailingIt->hash]--;
-                if (windowLen == 0 || hash_to_freq[trailingIt->hash] == 0) {
-                  overlapCount--;
-                  //std::cout << "CLOSE\t" << trailingIt->hash << std::endl;
+              // Catch the trailing iterator up to the leading iterator - windowLen
+              while (
+                  trailingIt != intervalPoints.end() 
+                  && ((trailingIt->seqId == leadingIt->seqId && trailingIt->pos <= leadingIt->pos - windowLen)
+                    || trailingIt->seqId < leadingIt->seqId))
+              {
+                if (trailingIt->side == side::CLOSE) {
+                  if (windowLen != 0)
+                    hash_to_freq[trailingIt->hash]--;
+                  if (windowLen == 0 || hash_to_freq[trailingIt->hash] == 0) {
+                    overlapCount--;
+                    //std::cout << "CLOSE\t" << trailingIt->hash << std::endl;
+                  }
                 }
+                trailingIt++;
               }
-              trailingIt++;
-            }
-            auto currentPos = leadingIt->pos;
-            while (leadingIt != intervalPoints.end() && leadingIt->pos == currentPos) {
-              if (leadingIt->side == side::OPEN) {
-                if (windowLen == 0 || hash_to_freq[leadingIt->hash] == 0) {
-                  overlapCount++;
-                  //std::cout << "OPEN \t" << leadingIt->hash << std::endl;
+              auto currentPos = leadingIt->pos;
+              while (leadingIt != intervalPoints.end() && leadingIt->pos == currentPos) {
+                if (leadingIt->side == side::OPEN) {
+                  if (windowLen == 0 || hash_to_freq[leadingIt->hash] == 0) {
+                    overlapCount++;
+                    //std::cout << "OPEN \t" << leadingIt->hash << std::endl;
+                  }
+                  if (windowLen != 0)
+                    hash_to_freq[leadingIt->hash]++;
                 }
-                if (windowLen != 0)
-                  hash_to_freq[leadingIt->hash]++;
+                leadingIt++;
               }
-              leadingIt++;
+
+              DEBUG_ASSERT(overlapCount >= 0, windowLen, trailingIt->seqId, trailingIt->pos, leadingIt->seqId, leadingIt->pos);
+              DEBUG_ASSERT(windowLen != 0 || overlapCount <= Q.sketchSize, windowLen, trailingIt->seqId, trailingIt->pos, leadingIt->seqId, leadingIt->pos);
+
+              //std::cout << currentPos << "\t" << overlapCount << std::endl;
+              //Is this sliding window the best we have so far?
+              bestIntersectionSize = std::max(bestIntersectionSize, overlapCount);
             }
 
-            DEBUG_ASSERT(overlapCount >= 0, windowLen, trailingIt->seqId, trailingIt->pos, leadingIt->seqId, leadingIt->pos);
-            DEBUG_ASSERT(windowLen != 0 || overlapCount <= Q.sketchSize, windowLen, trailingIt->seqId, trailingIt->pos, leadingIt->seqId, leadingIt->pos);
-
-            //std::cout << currentPos << "\t" << overlapCount << std::endl;
-            //Is this sliding window the best we have so far?
-            bestIntersectionSize = std::max(bestIntersectionSize, overlapCount);
-          }
-
-          // Only go back through to find local opts if we know that there are some that are 
-          // large enough
-          if (bestIntersectionSize < minimumHits) 
-          {
-            return;
-          }
+            // Only go back through to find local opts if we know that there are some that are 
+            // large enough
+            if (bestIntersectionSize < minimumHits) 
+            {
+              return;
+            }
+          } 
 
           // Clear freq dict, as there will be left open CLOSE points at the end of the last seq
           // that we never got to
@@ -781,6 +786,7 @@ namespace skch
 
           // Need to keep track of two positions, as the previous one will be the local optimum
           SeqCoord prevPos, currentPos;
+
 
           while (leadingIt != intervalPoints.end())
           {
@@ -823,49 +829,42 @@ namespace skch
               leadingIt++;
             }
 
-          if (prevOverlap >= bestIntersectionSize // sketchCutoffs[Q.sketchSize][bestIntersectionSize] 
-             )
+          if ((!param.stage1_topANI_filter && prevOverlap >= minimumHits)
+              //|| prevOverlap >= bestIntersectionSize 
+               || prevOverlap >= sketchCutoffs[Q.sketchSize][bestIntersectionSize] 
               //&& prevOverlap >= overlapCount && prevOverlap >= prevPrevOverlap)
+             )
           {
-            //if (!in_candidate) {
-              //l1_out.rangeStartPos = prevPos.pos;
-              //l1_out.seqId = prevPos.seqId;
-              //l1_out.strand = (strandCount >= 0) ? strnd::FWD : strnd::REV;
-            //} else {
-              //// In cases where the bestIntersectionSize is very low, we could have valid regions span
-              //// multiple contigs (for example, when the minimum overlap is only 1)
-              //if (l1_out.seqId != prevPos.seqId) {
-                //localOpts.push_back(l1_out);
-                //l1_out = {};
-                //l1_out.rangeStartPos = prevPos.pos;
-                //l1_out.seqId = prevPos.seqId;
-              //}
-            //}
-            //
-            l1_out = {};
-            l1_out.rangeStartPos = prevPos.pos;
-            l1_out.seqId = prevPos.seqId;
-            l1_out.rangeStartPos = prevPos.pos;
-            l1_out.strand = (strandCount >= 0) ? strnd::FWD : strnd::REV;
-            //
+            if (l1_out.seqId != prevPos.seqId && in_candidate) {
+              localOpts.push_back(l1_out);
+              in_candidate = false;
+            }
+            if (!in_candidate) {
+              l1_out.rangeStartPos = prevPos.pos;
+              l1_out.seqId = prevPos.seqId;
+              l1_out.strand = (strandCount >= 0) ? strnd::FWD : strnd::REV;
+              l1_out.intersectionSize = prevOverlap;
+            } 
             l1_out.rangeEndPos = prevPos.pos;
             l1_out.intersectionSize = std::max<offset_t>(l1_out.intersectionSize, prevOverlap);
             in_candidate = true;
-          } else {
+          } 
+          else {
             if (in_candidate) {
               localOpts.push_back(l1_out);
+              l1_out = {};
             }
             in_candidate = false;
-            l1_out = {};
           }
+        }
+        if (in_candidate) {
+          localOpts.push_back(l1_out);
         }
 
         // Join together proximal local opts
         for (auto& l1_out : localOpts) 
         {
-          //std::cout << l1_out.rangeEndPos - l1_out.rangeStartPos << "\n";
-          if (true 
-              || l1Mappings.empty() 
+          if (l1Mappings.empty() 
               || l1_out.seqId != l1Mappings.back().seqId 
               || l1_out.rangeStartPos > l1Mappings.back().rangeEndPos + clusterLen) 
           {
@@ -874,6 +873,7 @@ namespace skch
           else 
           {
             l1Mappings.back().rangeEndPos = l1_out.rangeEndPos;
+            l1Mappings.back().intersectionSize = std::max(l1_out.intersectionSize, l1Mappings.back().intersectionSize);
           }
         }
       }
