@@ -674,8 +674,17 @@ namespace skch
                   //mi.strand = mi.strand * it->strand;
                   // Only add hits w/ same name if !param.skip_self
                   if (!param.skip_self || Q.seqName != this->refSketch.metadata[mi.seqId].name) {
-                    intervalPoints.push_back(IntervalPoint {side::OPEN, mi.seqId, mi.wpos, strand_t(mi.strand * it->strand), mi.hash});
-                    intervalPoints.push_back(IntervalPoint {side::CLOSE, mi.seqId, mi.wpos_end, strand_t(mi.strand * it->strand), mi.hash});
+                    // Only add both points if not overlapping
+                    // Since we always add the close interval second, we know we can check the last intervalpoint
+                    if (intervalPoints.size() == 0 
+                        || intervalPoints.back().hash != mi.hash 
+                        || intervalPoints.back().pos != mi.wpos)
+                    {
+                      intervalPoints.push_back(IntervalPoint {side::OPEN, mi.seqId, mi.wpos, strand_t(mi.strand * it->strand), mi.hash});
+                      intervalPoints.push_back(IntervalPoint {side::CLOSE, mi.seqId, mi.wpos_end, strand_t(mi.strand * it->strand), mi.hash});
+                    } else {
+                      intervalPoints.back().pos = mi.wpos_end;
+                    }
                   }
               });
             }
@@ -807,6 +816,7 @@ namespace skch
                   hash_to_freq[trailingIt->hash]--;
                 if (windowLen == 0 || hash_to_freq[trailingIt->hash] == 0) {
                   overlapCount--;
+                  //std::cout << "Closing " << trailingIt->hash << " @ " << trailingIt->pos << std::endl;
                   strandCount -= trailingIt->strand;
                 }
               }
@@ -821,6 +831,7 @@ namespace skch
               if (leadingIt->side == side::OPEN) {
                 if (windowLen == 0 || hash_to_freq[leadingIt->hash] == 0) {
                   overlapCount++;
+                  //std::cout << "Opening " << leadingIt->hash << " @ " << leadingIt->pos << std::endl;
                   strandCount += trailingIt->strand;
                 }
                 if (windowLen != 0)
@@ -828,26 +839,37 @@ namespace skch
               }
               leadingIt++;
             }
-
+          //std::cout << overlapCount << std::endl;
           if ((!param.stage1_topANI_filter && prevOverlap >= minimumHits)
-              //|| prevOverlap >= bestIntersectionSize 
-               || prevOverlap >= sketchCutoffs[Q.sketchSize][bestIntersectionSize] 
-              //&& prevOverlap >= overlapCount && prevOverlap >= prevPrevOverlap)
+              || prevOverlap >= bestIntersectionSize 
+              || (prevOverlap >= sketchCutoffs[Q.sketchSize][bestIntersectionSize] 
+              //&& prevOverlap > overlapCount && prevOverlap >= prevPrevOverlap)
              )
-          {
+          ) {
             if (l1_out.seqId != prevPos.seqId && in_candidate) {
               localOpts.push_back(l1_out);
               in_candidate = false;
             }
             if (!in_candidate) {
+              //std::cout << " New window\n";
               l1_out.rangeStartPos = prevPos.pos;
+              l1_out.rangeEndPos = prevPos.pos;
               l1_out.seqId = prevPos.seqId;
               l1_out.strand = (strandCount >= 0) ? strnd::FWD : strnd::REV;
               l1_out.intersectionSize = prevOverlap;
-            } 
-            l1_out.rangeEndPos = prevPos.pos;
-            l1_out.intersectionSize = std::max<offset_t>(l1_out.intersectionSize, prevOverlap);
-            in_candidate = true;
+              in_candidate = true;
+            } else {
+              if (param.stage2_full_scan) {
+                l1_out.intersectionSize = std::max(l1_out.intersectionSize, overlapCount);
+                l1_out.rangeEndPos = prevPos.pos;
+              }
+              else if (l1_out.intersectionSize < prevOverlap) {
+                l1_out.intersectionSize = prevOverlap;
+                l1_out.rangeStartPos = prevPos.pos;
+                l1_out.rangeEndPos = prevPos.pos;
+                l1_out.strand = (strandCount >= 0) ? strnd::FWD : strnd::REV;
+              }
+            }
           } 
           else {
             if (in_candidate) {
@@ -926,6 +948,7 @@ namespace skch
         void doL2Mapping(Q_Info &Q, VecIn &l1Mappings, VecOut &l2Mappings)
         {
           ///2. Walk the read over the candidate regions and compute the jaccard similarity with minimum s sketches
+          //std::cout << Q.seqName << " has " << l1Mappings.size() << " L1 regions...\n";
           for(auto &candidateLocus: l1Mappings)
           {
             std::vector<L2_mapLocus_t> l2_vec;
@@ -943,6 +966,10 @@ namespace skch
             }
             for (auto& l2 : l2_vec) 
             {
+              if (l2.sharedSketchSize > candidateLocus.intersectionSize) {
+                std::cerr << l2.sharedSketchSize << " > " << candidateLocus.intersectionSize << std::endl;
+              }
+              //std::cout << "Candidate region of len=" << candidateLocus.rangeEndPos - candidateLocus.rangeStartPos << ": " << candidateLocus.intersectionSize << " --> " << l2.sharedSketchSize << std::endl;
               //Compute mash distance using calculated jaccard
               float mash_dist = Stat::j2md(1.0 * l2.sharedSketchSize/Q.sketchSize, param.kmerSize);
 
