@@ -38,6 +38,8 @@ jobs:
         sudo apt install build-essential manpages-dev software-properties-common
         sudo add-apt-repository ppa:ubuntu-toolchain-r/test
         sudo apt update && sudo apt install ${{ matrix.compiler.CC }} ${{ matrix.compiler.CXX }}
+        sudo apt install libhts-dev
+        sudo apt install libjemalloc-dev
         cmake --version
     
 
