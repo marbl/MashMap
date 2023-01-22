@@ -26,7 +26,6 @@
 #include "common/murmur3.h"
 #include "common/kseq.h"
 #include "common/prettyprint.hpp"
-#include "gmpxx.h"
 
 namespace skch
 {
@@ -36,33 +35,6 @@ namespace skch
    */
   namespace Stat
   {
-
-    double mashNumeratorPmf(int s, int y, int ci)
-    {
-      if (ci == 0) {
-        return 0;
-      }
-      mpz_t s_choose_y, sci_choose_ciy, denom, num;
-      mpz_init(s_choose_y);
-      mpz_init(sci_choose_ciy);
-      mpz_init(denom);
-      mpz_init(num);
-      mpz_bin_uiui(s_choose_y, s, y);
-      mpz_bin_uiui(sci_choose_ciy, s-ci, ci-y);
-      mpz_bin_uiui(denom, 2*s - ci, ci);
-      mpz_mul(num, s_choose_y, sci_choose_ciy);
-
-      mpz_class numq(num);
-      mpz_class denomq(denom);
-
-      mpz_clear(s_choose_y);
-      mpz_clear(sci_choose_ciy);
-      mpz_clear(denom);
-      mpz_clear(num);
-
-      mpq_class res(numq, denomq);
-      return res.get_d();
-    }
 
     /**
      * @brief         jaccard estimate to mash distance

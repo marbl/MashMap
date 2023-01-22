@@ -38,7 +38,7 @@
 // this is for single-threaded use, but is more portable
 #include "common/dset64.hpp"
 #include "assert.hpp"
-#include <gmpxx.h>
+#include "gsl/gsl_randist.h"
 
 namespace skch
 {
@@ -135,53 +135,53 @@ namespace skch
           for (auto ci = 0; ci <= param.sketchSize; ci++) 
           {
             for (double y = 0; y <= ci; y++) {
-              sketchProbs[ss][ci][y] = skch::Stat::mashNumeratorPmf(param.sketchSize, y, ci);
+              sketchProbs[ss][ci][y] = gsl_ran_hypergeometric_pdf(y, ss, ss-ci, ci);
             }
           }
-          // Formula does not work w/ sketch size of 0
-          sketchProbs[ss][0][0] = 1;
+          
 
-          //TODO parameterize
           float deltaANI = param.ANIDiff;
-          float confidence = 1 - param.ANIDiffConf;
+          float min_p = 1 - param.ANIDiffConf;
 
           for (auto cmax = 1; cmax <= param.sketchSize; cmax++) 
           {
             for (auto ci = 1; ci <= cmax; ci++) 
             {
               double prAboveCutoff = 0;
-              for (double y = 0; y <= ci; y++) {
-                double yi_cutoff = (skch::Stat::md2j(
-                    skch::Stat::j2md(y / param.sketchSize, param.kmerSize) + deltaANI, 
-                    param.kmerSize
-                ) * param.sketchSize);
-                double pzy = sketchProbs[ss][cmax][y];
+              for (double ymax = 0; ymax <= cmax; ymax++) {
+                // Pr (Ymax = ymax)
+                double pymax = sketchProbs[ss][cmax][ymax];
 
-                double pi_acc = 1 - std::accumulate(
-                    sketchProbs[ss][ci].begin(), 
-                    sketchProbs[ss][ci].begin() + std::min(int(std::ceil(yi_cutoff)), param.sketchSize + 1),
-                    (double) 0
-                );
-                // Pr that mash score from cj leads to an ANI at least deltaJ less than the ANI from cmaxo 
-                prAboveCutoff += pzy * pi_acc;
+                // yi_cutoff is minimum jaccard numerator required to be within deltaANI of ymax
+                double yi_cutoff = deltaANI == 0 ? ymax : (std::floor(skch::Stat::md2j(
+                    skch::Stat::j2md(ymax / param.sketchSize, param.kmerSize) + deltaANI, 
+                    param.kmerSize
+                ) * param.sketchSize));
+
+                // Pr Y_i < yi_cutoff
+                double pi_acc = (yi_cutoff - 1) >= 0 ? gsl_cdf_hypergeometric_P(yi_cutoff-1, ss, ss-ci, ci) : 0;
+                // Pr Y_i >= yi_cutoff
+                pi_acc = 1-pi_acc;
+
+                // Pr that mash score from cj leads to an ANI at least deltaJ less than the ANI from cmax
+                prAboveCutoff += pymax * pi_acc;
               }
-              if (prAboveCutoff > confidence) 
+              if (prAboveCutoff > min_p) 
               {
                 sketchCutoffs[ss][cmax] = std::max(1, ci);
                 break;
               }
             }
-          }
-          if (sketchCutoffs[ss][ss] == ss) {
-            sketchCutoffs[ss][ss] = ss-1;
+            // For really high min_p values and some values of cmax, there are no values of
+            // ci that satisfy the cutoff, so we just set to the max
+            if (sketchCutoffs[ss][cmax] == 0) {
+              sketchCutoffs[ss][cmax] = cmax;
+            }
           }
           for (auto overlap = 0; overlap <= ss; overlap++) {
             DEBUG_ASSERT(sketchCutoffs[ss][overlap] <= overlap);
           }
         }
-        //for (auto overlap = 0; overlap <= param.sketchSize; overlap++) {
-          //std::cerr << overlap << ":\t" << sketchCutoffs[param.sketchSize][overlap] << std::endl;
-        //}
       }
 
       /**
