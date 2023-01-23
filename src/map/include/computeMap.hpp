@@ -845,8 +845,8 @@ namespace skch
               in_candidate = false;
             }
             if (!in_candidate) {
-              l1_out.rangeStartPos = prevPos.pos;
-              l1_out.rangeEndPos = prevPos.pos;
+              l1_out.rangeStartPos = prevPos.pos - windowLen;
+              l1_out.rangeEndPos = prevPos.pos - windowLen;
               l1_out.seqId = prevPos.seqId;
               l1_out.strand = (strandCount >= 0) ? strnd::FWD : strnd::REV;
               l1_out.intersectionSize = prevOverlap;
@@ -854,12 +854,12 @@ namespace skch
             } else {
               if (param.stage2_full_scan) {
                 l1_out.intersectionSize = std::max(l1_out.intersectionSize, prevOverlap);
-                l1_out.rangeEndPos = prevPos.pos;
+                l1_out.rangeEndPos = prevPos.pos - windowLen;
               }
               else if (l1_out.intersectionSize < prevOverlap) {
                 l1_out.intersectionSize = prevOverlap;
-                l1_out.rangeStartPos = prevPos.pos;
-                l1_out.rangeEndPos = prevPos.pos;
+                l1_out.rangeStartPos = prevPos.pos - windowLen;
+                l1_out.rangeEndPos = prevPos.pos - windowLen;
                 l1_out.strand = (strandCount >= 0) ? strnd::FWD : strnd::REV;
               }
             }
@@ -1027,6 +1027,9 @@ namespace skch
            
           auto& minmerIndex = refSketch.minmerIndex;
 
+          //candidateLocus.rangeStartPos -= param.segLength;
+          //candidateLocus.rangeEndPos += param.segLength;
+          
           // Get first potential mashimizer
           const MinmerInfo first_minmer = MinmerInfo {0, candidateLocus.seqId, candidateLocus.rangeStartPos - param.segLength - 1, 0, 0};
 

@@ -270,6 +270,8 @@ void parse_args(int argc,
         map_parameters.block_length = map_parameters.segLength;
     }
 
+    map_parameters.chain = !no_merge;
+
     if (chain_gap) {
         const int64_t l = mashmap::handy_parameter(args::get(chain_gap));
         if (l < 0) {
