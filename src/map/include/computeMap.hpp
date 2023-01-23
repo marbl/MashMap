@@ -741,7 +741,6 @@ namespace skch
                     hash_to_freq[trailingIt->hash]--;
                   if (windowLen == 0 || hash_to_freq[trailingIt->hash] == 0) {
                     overlapCount--;
-                    //std::cout << "CLOSE\t" << trailingIt->hash << std::endl;
                   }
                 }
                 trailingIt++;
@@ -751,7 +750,6 @@ namespace skch
                 if (leadingIt->side == side::OPEN) {
                   if (windowLen == 0 || hash_to_freq[leadingIt->hash] == 0) {
                     overlapCount++;
-                    //std::cout << "OPEN \t" << leadingIt->hash << std::endl;
                   }
                   if (windowLen != 0)
                     hash_to_freq[leadingIt->hash]++;
@@ -762,7 +760,6 @@ namespace skch
               DEBUG_ASSERT(overlapCount >= 0, windowLen, trailingIt->seqId, trailingIt->pos, leadingIt->seqId, leadingIt->pos);
               DEBUG_ASSERT(windowLen != 0 || overlapCount <= Q.sketchSize, windowLen, trailingIt->seqId, trailingIt->pos, leadingIt->seqId, leadingIt->pos);
 
-              //std::cout << currentPos << "\t" << overlapCount << std::endl;
               //Is this sliding window the best we have so far?
               bestIntersectionSize = std::max(bestIntersectionSize, overlapCount);
             }
@@ -816,7 +813,6 @@ namespace skch
                   hash_to_freq[trailingIt->hash]--;
                 if (windowLen == 0 || hash_to_freq[trailingIt->hash] == 0) {
                   overlapCount--;
-                  //std::cout << "Closing " << trailingIt->hash << " @ " << trailingIt->pos << std::endl;
                   strandCount -= trailingIt->strand;
                 }
               }
@@ -831,7 +827,6 @@ namespace skch
               if (leadingIt->side == side::OPEN) {
                 if (windowLen == 0 || hash_to_freq[leadingIt->hash] == 0) {
                   overlapCount++;
-                  //std::cout << "Opening " << leadingIt->hash << " @ " << leadingIt->pos << std::endl;
                   strandCount += trailingIt->strand;
                 }
                 if (windowLen != 0)
@@ -839,7 +834,6 @@ namespace skch
               }
               leadingIt++;
             }
-          //std::cout << overlapCount << std::endl;
           if ((!param.stage1_topANI_filter && prevOverlap >= minimumHits)
               || prevOverlap >= bestIntersectionSize 
               || (prevOverlap >= sketchCutoffs[Q.sketchSize][bestIntersectionSize] 
@@ -851,7 +845,6 @@ namespace skch
               in_candidate = false;
             }
             if (!in_candidate) {
-              //std::cout << " New window\n";
               l1_out.rangeStartPos = prevPos.pos;
               l1_out.rangeEndPos = prevPos.pos;
               l1_out.seqId = prevPos.seqId;
@@ -860,7 +853,7 @@ namespace skch
               in_candidate = true;
             } else {
               if (param.stage2_full_scan) {
-                l1_out.intersectionSize = std::max(l1_out.intersectionSize, overlapCount);
+                l1_out.intersectionSize = std::max(l1_out.intersectionSize, prevOverlap);
                 l1_out.rangeEndPos = prevPos.pos;
               }
               else if (l1_out.intersectionSize < prevOverlap) {
@@ -948,7 +941,6 @@ namespace skch
         void doL2Mapping(Q_Info &Q, VecIn &l1Mappings, VecOut &l2Mappings)
         {
           ///2. Walk the read over the candidate regions and compute the jaccard similarity with minimum s sketches
-          //std::cout << Q.seqName << " has " << l1Mappings.size() << " L1 regions...\n";
           for(auto &candidateLocus: l1Mappings)
           {
             std::vector<L2_mapLocus_t> l2_vec;
@@ -966,10 +958,6 @@ namespace skch
             }
             for (auto& l2 : l2_vec) 
             {
-              if (l2.sharedSketchSize > candidateLocus.intersectionSize) {
-                std::cerr << l2.sharedSketchSize << " > " << candidateLocus.intersectionSize << std::endl;
-              }
-              //std::cout << "Candidate region of len=" << candidateLocus.rangeEndPos - candidateLocus.rangeStartPos << ": " << candidateLocus.intersectionSize << " --> " << l2.sharedSketchSize << std::endl;
               //Compute mash distance using calculated jaccard
               float mash_dist = Stat::j2md(1.0 * l2.sharedSketchSize/Q.sketchSize, param.kmerSize);
 
@@ -1056,6 +1044,10 @@ namespace skch
 
           // Keep track of all minmer windows that intersect with [i, i+windowLen]
           int windowLen = std::max<offset_t>(0, Q.len - param.segLength);
+
+          // Used to keep track of how many minmer windows for a particular hash are currently "open"
+          // Only necessary when windowLen != 0.
+          std::unordered_map<hash_t, int> hash_to_freq;
           
           // slideMap tracks the S(A or B) and S(A) and S(B)
           SlideMapper<Q_Info> slideMap(Q);
@@ -1069,10 +1061,17 @@ namespace skch
           // Set up the window
           while (windowIt != minmerIndex.end() && windowIt->seqId == candidateLocus.seqId && windowIt->wpos < candidateLocus.rangeStartPos) 
           {
-            if (windowIt->wpos_end > candidateLocus.rangeStartPos) {
+            if (windowIt->wpos_end > candidateLocus.rangeStartPos) 
+            {
+              if (windowLen > 0) 
+              {
+                hash_to_freq[windowIt->hash]++;
+              }
+              if (windowLen == 0 || hash_to_freq[windowIt->hash] == 1) {
                 slidingWindow.push_back(*windowIt);
                 std::push_heap(slidingWindow.begin(), slidingWindow.end(), heap_cmp);
                 slideMap.insert_minmer(*windowIt);
+              }
             }
             windowIt++;
           }
@@ -1082,17 +1081,34 @@ namespace skch
             int prev_strand_votes = slideMap.strand_votes;
             bool inserted = false;
             while (!slidingWindow.empty() && slidingWindow.front().wpos_end <= windowIt->wpos - windowLen) {
-              // Remove minmer from  sorted window
-              slideMap.delete_minmer(slidingWindow.front());
 
               // Remove minmer from end-ordered heap
-              std::pop_heap(slidingWindow.begin(), slidingWindow.end(), heap_cmp);
-              slidingWindow.pop_back();
+              if (windowLen > 0) 
+              {
+                hash_to_freq[slidingWindow.front().hash]--;
+              }
+              if (windowLen == 0 || hash_to_freq[slidingWindow.front().hash] == 0) {
+                // Remove minmer from  sorted window
+                slideMap.delete_minmer(slidingWindow.front());
+                std::pop_heap(slidingWindow.begin(), slidingWindow.end(), heap_cmp);
+                slidingWindow.pop_back();
+              }
+
             }
             inserted = true;
-            slideMap.insert_minmer(*windowIt);
-            slidingWindow.push_back(*windowIt);
-            std::push_heap(slidingWindow.begin(), slidingWindow.end(), heap_cmp);
+            if (windowLen > 0) 
+            {
+              hash_to_freq[windowIt->hash]++;
+            }
+            if (windowLen == 0 || hash_to_freq[windowIt->hash] == 1) {
+              slideMap.insert_minmer(*windowIt);
+              slidingWindow.push_back(*windowIt);
+              std::push_heap(slidingWindow.begin(), slidingWindow.end(), heap_cmp);
+            } else {
+              windowIt++;
+              continue;
+            }
+
 
             //Is this sliding window the best we have so far?
             if (slideMap.sharedSketchElements > bestSketchSize)
