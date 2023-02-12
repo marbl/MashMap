@@ -1056,8 +1056,8 @@ namespace skch
           // slideMap tracks the S(A or B) and S(A) and S(B)
           SlideMapper<Q_Info> slideMap(Q);
 
-          int beginOptimalPos = 0;
-          int lastOptimalPos = 0;
+          offset_t beginOptimalPos = 0;
+          offset_t lastOptimalPos = 0;
           int bestSketchSize = 1;
           bool in_candidate = false;
           L2_mapLocus_t l2_out = {};
