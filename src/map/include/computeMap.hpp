@@ -842,6 +842,7 @@ namespace skch
           ) {
             if (l1_out.seqId != prevPos.seqId && in_candidate) {
               localOpts.push_back(l1_out);
+              l1_out = {};
               in_candidate = false;
             }
             if (!in_candidate) {
@@ -1122,7 +1123,7 @@ namespace skch
 
               //Save the position
               beginOptimalPos = windowIt->wpos - windowLen;
-              lastOptimalPos = windowIt->wpos - windowLen;
+              lastOptimalPos = std::next(windowIt, windowIt != minmerIndex.end())->wpos - windowLen;
             }
             else if(slideMap.sharedSketchElements == bestSketchSize)
             {
