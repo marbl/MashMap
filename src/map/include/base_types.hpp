@@ -13,7 +13,7 @@
 namespace skch
 {
   typedef uint64_t hash_t;   //hash type
-  typedef uint64_t offset_t; //position within sequence
+  typedef int64_t offset_t;  //position within sequence
   typedef int seqno_t;       //sequence counter in file
   typedef int8_t strand_t;   //sequence strand 
   typedef int8_t side_t;     //sequence strand 
