@@ -1492,7 +1492,7 @@ namespace skch
                    << "\t" << e.blockLength
                    << "\t" << fakeMapQ
                    << "\t" << "id:f:" << e.nucIdentity * 100.0
-                   << "\t" << "jc:f:" << float(e.conservedSketches) / e.sketchSize;
+                   << "\t" << "jc:f:" << e.conservedSketches * 100.0 / e.sketchSize;
               //<< "\t" << "nu:f:" << e.nucIdentityUpperBound;
 
 #ifdef DEBUG
