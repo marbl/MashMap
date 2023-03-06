@@ -104,11 +104,11 @@ namespace skch
   // Endpoints for minmer intervals
   struct IntervalPoint
   {
-    side_t side;
     seqno_t seqId;
     offset_t pos;
-    strand_t strand;
     hash_t hash;
+    side_t side;
+    strand_t strand;
 
     // Sort interval points. 
     // For a pair of points at the same seqId/pos, the end point should be first
