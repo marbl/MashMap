@@ -8,12 +8,11 @@
 #include "map/include/map_stats.hpp"
 #include "map/include/commonFunc.hpp"
 
-#include "interface/temp_file.hpp"
 #include "common/utils.hpp"
 
 #include "mashmap_git_version.hpp"
 
-// If the MASHMAP_GIT_VERSION doesn't exist at all, define a placeholder
+// If the WFMASH_GIT_VERSION doesn't exist at all, define a placeholder
 #ifndef MASHMAP_GIT_VERSION
 #define MASHMAP_GIT_VERSION "not-from-git"
 #endif
@@ -53,47 +52,44 @@ void parse_args(int argc,
                 skch::Parameters& map_parameters,
                 yeet::Parameters& yeet_parameters) {
 
-    args::ArgumentParser parser("mashmap: a pangenome-scale mapper, " + std::string(MASHMAP_GIT_VERSION));
+    args::ArgumentParser parser("mashmap: A tool for scalable approximate mapping and ANI estimation " + std::string(MASHMAP_GIT_VERSION));
     parser.helpParams.width = 100;
     parser.helpParams.showTerminator = false;
 
     args::Group mandatory_opts(parser, "[ MANDATORY OPTIONS ]");
-    args::Positional<std::string> target_sequence_file(mandatory_opts, "target", "alignment target/reference sequence file");
+    args::Positional<std::string> target_sequence_file(mandatory_opts, "target", "target/reference sequence file");
 
     args::Group io_opts(parser, "[ Files IO Options ]");
     args::PositionalList<std::string> query_sequence_files(io_opts, "queries", "query sequences file");
-    args::ValueFlag<std::string> query_sequence_file_list(io_opts, "queries", "alignment queries files list", {'Q', "query-file-list"});
+    args::ValueFlag<std::string> query_sequence_file_list(io_opts, "queries", "mapping queries files list", {'Q', "query-file-list"});
 
     args::Group mapping_opts(parser, "[ Mapping Options ]");
-    args::ValueFlag<std::string> index_load_file(io_opts, "FILENAME", "Filename of index file to load", {'A', "index-load-file"});
-    args::ValueFlag<std::string> index_save_file(io_opts, "FILENAME", "Filename of index file to save", {'z', "index-save-file"});
+    args::ValueFlag<float> map_pct_identity(mapping_opts, "%", "percent identity in the mashmap step [default: 90]", {'p', "map-pct-id"});
     args::ValueFlag<std::string> segment_length(mapping_opts, "N", "segment seed length for mapping [default: 5k]", {'s', "segment-length"});
     args::ValueFlag<std::string> block_length(mapping_opts, "N", "keep merged mappings supported by homologies of this total length [default: 5*segment-length]", {'l', "block-length"});
-    args::ValueFlag<std::string> chain_gap(mapping_opts, "N", "chain mappings closer than this distance in query and target, retaining mappings in best chain [default: 100k]", {'c', "chain-gap"});
+    args::ValueFlag<uint32_t> num_mappings_for_segments(mapping_opts, "N", "number of mappings to retain for each segment [default: 1]", {'n', "num-mappings-for-segment"});
+    args::ValueFlag<std::string> index_load_file(io_opts, "FILENAME", "Filename of index file to load", {'A', "index-load-file"});
+    args::ValueFlag<std::string> index_save_file(io_opts, "FILENAME", "Filename of index file to save", {'y', "index-save-file"});
+    args::ValueFlag<uint32_t> num_mappings_for_short_seq(mapping_opts, "N", "number of mappings to retain for each sequence shorter than segment length [default: 1]", {'S', "num-mappings-for-short-seq"});
     args::ValueFlag<int> kmer_size(mapping_opts, "N", "kmer size [default: 19]", {'k', "kmer"});
     args::ValueFlag<float> kmer_pct_threshold(mapping_opts, "%", "ignore the top % most-frequent kmers [default: 0.001]", {'H', "kmer-threshold"});
-    args::ValueFlag<uint32_t> num_mappings_for_segments(mapping_opts, "N", "number of mappings to retain for each segment [default: 1]", {'n', "num-mappings-for-segment"});
-    args::ValueFlag<uint32_t> num_mappings_for_short_seq(mapping_opts, "N", "number of mappings to retain for each sequence shorter than segment length [default: 1]", {'S', "num-mappings-for-short-seq"});
     args::Flag skip_self(mapping_opts, "", "skip self mappings when the query and target name is the same (for all-vs-all mode)", {'X', "skip-self"});
     args::ValueFlag<char> skip_prefix(mapping_opts, "C", "skip mappings when the query and target have the same prefix before the last occurrence of the given character C", {'Y', "skip-prefix"});
     args::Flag no_split(mapping_opts, "no-split", "disable splitting of input sequences during mapping [default: enabled]", {'N',"no-split"});
-    args::ValueFlag<float> map_pct_identity(mapping_opts, "%", "percent identity in the mashmap step [default: 90]", {'p', "map-pct-id"});
+    args::ValueFlag<std::string> chain_gap(mapping_opts, "N", "chain mappings closer than this distance in query and target, retaining mappings in best chain [default: 100k]", {'c', "chain-gap"});
     args::Flag drop_low_map_pct_identity(mapping_opts, "K", "drop mappings with estimated identity below --map-pct-id=%", {'K', "drop-low-map-id"});
-    args::Flag keep_low_align_pct_identity(mapping_opts, "A", "keep alignments with gap-compressed identity below --map-pct-id=% x 0.75", {'O', "keep-low-align-id"});
-    args::Flag stage2_full_scan(mapping_opts, "stage2-full-scan", "scan full candidate regions for best minhash instead of just using the point with the highest intersection [default: disabled]", {'F',"s2-full-scan"});
-    args::Flag disable_topANI_filter(mapping_opts, "disable-top-ANI-filter", "Do not use the threshold filtering for stage 1 of mapping", {'D', "disable-topANI-filter"});
-    args::ValueFlag<float> map_ani_threshold(mapping_opts, "%", "ANI difference threshold for stage 1 filtering [default: 0.0]", {'T', "s1-ani-thresh"});
-    args::ValueFlag<float> map_ani_threshold_conf(mapping_opts, "%", "Confidence for ANI difference threshold for stage 1 filtering [default: 0.999]", {'C', "s1-ani-thresh-conf"});
     args::Flag no_filter(mapping_opts, "MODE", "disable mapping filtering", {'f', "no-filter"});
     args::ValueFlag<double> map_sparsification(mapping_opts, "FACTOR", "keep this fraction of mappings", {'x', "sparsify-mappings"});
-    args::Flag no_merge(mapping_opts, "no-merge", "don't merge consecutive segment-level mappings (NOT FULLY IMPLEMENTED)", {'M', "no-merge"});
-    args::ValueFlag<int64_t> sketchSize(mapping_opts, "N", "Number of sketch elements [default 25]", {'J', "sketch-size"});
+    args::Flag no_merge(mapping_opts, "no-merge", "don't merge consecutive segment-level mappings", {'M', "no-merge"});
+    //args::ValueFlag<int64_t> window_size(mapping_opts, "N", "window size for sketching. If 0, it computes the best window size automatically [default: 0, minimum -k]", {'w', "window-size"});
+    //args::Flag window_minimizers(mapping_opts, "", "Use window minimizers rather than world minimizers", {'U', "window-minimizers"});
+    args::ValueFlag<int64_t> sketchSize(mapping_opts, "N", "Number of sketch elements [default: segmentLength / 25]", {'J', "sketch-size"});
     //args::ValueFlag<std::string> path_high_frequency_kmers(mapping_opts, "FILE", " input file containing list of high frequency kmers", {'H', "high-freq-kmers"});
-
-    args::Group general_opts(parser, "[ General Options ]");
-    args::ValueFlag<std::string> tmp_base(general_opts, "PATH", "base name for temporary files [default: `pwd`]", {'B', "tmp-base"});
-    args::Flag keep_temp_files(general_opts, "", "keep intermediate files", {'Z', "keep-temp"});
-    //args::Flag show_progress(general_opts, "show-progress", "write alignment progress to stderr", {'P', "show-progress"});
+    args::Flag stage2_full_scan(mapping_opts, "stage2-full-scan", "scan full candidate regions for best minhash instead of just using the point with the highest intersection [default: disabled]", {'F',"s2-full-scan"});
+    args::Flag use_topANI_filter(mapping_opts, "hgf-filter", "Use the hypergeometric threshold filtering for stage 1 of mapping", {'D', "hgf-filter"});
+    args::ValueFlag<float> map_ani_threshold(mapping_opts, "%", "ANI difference threshold for hypergeometric filtering [default: 0.0]", {'T', "hgf-ani-thresh"});
+    args::ValueFlag<float> map_ani_threshold_conf(mapping_opts, "%", "Confidence for ANI difference threshold for hypergeometric filtering [default: 0.999]", {'C', "hgf-ani-thresh-conf"});
+    //args::ValueFlag<std::string> spaced_seed_params(mapping_opts, "spaced-seeds", "Params to generate spaced seeds <weight_of_seed> <number_of_seeds> <similarity> <region_length> e.g \"10 5 0.75 20\"", {'e', "spaced-seeds"});
 
     args::Group threading_opts(parser, "[ Threading ]");
     args::ValueFlag<int> thread_count(threading_opts, "N", "use this many threads during parallel steps", {'t', "threads"});
@@ -158,11 +154,10 @@ void parse_args(int argc,
     } else {
         map_parameters.saveIndexFilename = "";
     }
-
     if (index_load_file) {
         map_parameters.loadIndexFilename = args::get(index_load_file);
     } else {
-        map_parameters.loadIndexFilename = "";
+        map_parameters.loadIndexFilename = "";      
     }
 
     // If there are no queries, go in all-vs-all mode with the sequences specified in `target_sequence_file`
@@ -186,6 +181,22 @@ void parse_args(int argc,
         }
     }
 
+    if (map_ani_threshold) {
+        map_parameters.ANIDiff = (float) (args::get(map_ani_threshold)/100.0); // scale to [0,1]
+    } else {
+        map_parameters.ANIDiff = skch::fixed::ANIDiff;
+    }
+  
+    if (map_ani_threshold_conf) {
+        map_parameters.ANIDiffConf = (float) (args::get(map_ani_threshold_conf)/100.0); // scale to [0,1]
+    } else {
+        map_parameters.ANIDiffConf = skch::fixed::ANIDiffConf;
+    }
+
+    map_parameters.stage1_topANI_filter = args::get(use_topANI_filter); 
+    map_parameters.stage2_full_scan = args::get(stage2_full_scan);
+    //map_parameters.stage2_full_scan = false;
+
     if (map_sparsification) {
         if (args::get(map_sparsification) == 1) {
             // overflows
@@ -199,16 +210,6 @@ void parse_args(int argc,
             = std::numeric_limits<uint64_t>::max();
     }
 
-    if (sketchSize) {
-        const int64_t ss = args::get(sketchSize);
-        if (ss < 1) {
-            std::cerr << "[mashmap] ERROR, skch::parseandSave, sketch size must be at least 1" << std::endl;
-            exit(1);
-        }
-        map_parameters.sketchSize = ss;
-    } else {
-        map_parameters.sketchSize = 25;
-    }
 
     map_parameters.split = !args::get(no_split);
     map_parameters.mergeMappings = !args::get(no_merge);
@@ -231,6 +232,18 @@ void parse_args(int argc,
         map_parameters.segLength = 5000;
     }
 
+    if (sketchSize) {
+        const int64_t ss = args::get(sketchSize);
+        if (ss < 1) {
+            std::cerr << "[mashmap] ERROR, skch::parseandSave, sketch size must be at least 1" << std::endl;
+            exit(1);
+        }
+        map_parameters.sketchSize = ss;
+    } else {
+        map_parameters.sketchSize = map_parameters.segLength / 25;
+    }
+
+
     if (map_pct_identity) {
         if (args::get(map_pct_identity) < 50) {
             std::cerr << "[mashmap] ERROR, skch::parseandSave, minimum nucleotide identity requirement should be >= 50\%." << std::endl;
@@ -240,21 +253,6 @@ void parse_args(int argc,
     } else {
         map_parameters.percentageIdentity = skch::fixed::percentage_identity;
     }
-
-    if (map_ani_threshold) {
-        map_parameters.ANIDiff = (float) (args::get(map_ani_threshold)/100.0); // scale to [0,1]
-    } else {
-        map_parameters.ANIDiff = skch::fixed::ANIDiff;
-    }
-
-    if (map_ani_threshold_conf) {
-        map_parameters.ANIDiffConf = (float) (args::get(map_ani_threshold_conf)/100.0); // scale to [0,1]
-    } else {
-        map_parameters.ANIDiffConf = skch::fixed::ANIDiffConf;
-    }
-
-    map_parameters.stage1_topANI_filter = !args::get(disable_topANI_filter); 
-    map_parameters.stage2_full_scan = args::get(stage2_full_scan); 
 
     if (block_length) {
         const int64_t l = mashmap::handy_parameter(args::get(block_length));
@@ -266,11 +264,10 @@ void parse_args(int argc,
 
         map_parameters.block_length = l;
     } else {
-        // Default block length is just the segment size
-        map_parameters.block_length = map_parameters.segLength;
+        // n.b. we map-merge across gaps up to 3x segment length
+        // and then filter for things that are at least block_length long
+        map_parameters.block_length = 5 * map_parameters.segLength;
     }
-
-    map_parameters.chain = !no_merge;
 
     if (chain_gap) {
         const int64_t l = mashmap::handy_parameter(args::get(chain_gap));
@@ -280,8 +277,7 @@ void parse_args(int argc,
         }
         map_parameters.chain_gap = l;
     } else {
-        // Default chain length is just the segment size / sketch_size
-        map_parameters.chain_gap = map_parameters.segLength / map_parameters.sketchSize;
+        map_parameters.chain_gap = 100000;
     }
 
     if (drop_low_map_pct_identity) {
@@ -309,17 +305,13 @@ void parse_args(int argc,
         map_parameters.kmer_pct_threshold = 0.001; // in percent! so we keep 99.999% of kmers
     }
 
+    map_parameters.use_spaced_seeds = false;
 
     if (thread_count) {
         map_parameters.threads = args::get(thread_count);
     } else {
         map_parameters.threads = 1;
     }
-
-
-    map_parameters.outFileName = "/dev/stdout";
-    yeet_parameters.approx_mapping = true;
-
 
     if (num_mappings_for_segments) {
         if (args::get(num_mappings_for_segments) > 0) {
@@ -345,8 +337,9 @@ void parse_args(int argc,
 
     //Check if files are valid
     skch::validateInputFiles(map_parameters.querySequences, map_parameters.refSequences);
+    map_parameters.outFileName = "/dev/stdout";
+    yeet_parameters.approx_mapping = true;
 
-    temp_file::set_keep_temp(args::get(keep_temp_files));
 
 }
 

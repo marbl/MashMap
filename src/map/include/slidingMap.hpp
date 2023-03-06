@@ -9,6 +9,7 @@
 
 #include <vector>
 #include <algorithm>
+#include <numeric>
 #include <map>
 
 //Own includes
@@ -79,7 +80,7 @@ namespace skch
          */
         SlideMapper(Q_Info &Q_) :
           Q(Q_),
-          slidingWindowMinhashes(Q.sketchSize),
+          slidingWindowMinhashes(Q.sketchSize + 1),
           sharedSketchElements(0),
           strand_votes(0)
         {
@@ -116,7 +117,7 @@ namespace skch
 
           //Point pivot to last element in the map
           this->pivot = std::prev(this->slidingWindowMinhashes.end());
-          pivRank = slidingWindowMinhashes.size();
+          pivRank = slidingWindowMinhashes.size() - 1;
         }
 
       public:
@@ -125,7 +126,7 @@ namespace skch
         {
           // Find where minmer goes in vector
           auto insert_loc = std::lower_bound(
-              slidingWindowMinhashes.begin(), slidingWindowMinhashes.end(),
+              std::next(slidingWindowMinhashes.begin()), slidingWindowMinhashes.end(),
               mi.hash,
               [](const slidingMapContainerValueType& a, hash_t b) {return a.hash < b;});
 
@@ -170,7 +171,7 @@ namespace skch
         {
           // Find where minmer goes in vector
           auto insert_loc = std::lower_bound(
-              slidingWindowMinhashes.begin(), slidingWindowMinhashes.end(),
+              std::next(slidingWindowMinhashes.begin()), slidingWindowMinhashes.end(),
               mi.hash,
               [](const slidingMapContainerValueType& a, hash_t b) {return a.hash < b;});
 
@@ -201,7 +202,7 @@ namespace skch
                 && pivRank + std::next(pivot)->num_before_inc <= Q.sketchSize) {
               pivot++;
               sharedSketchElements += pivot->active;
-              strand_votes -= pivot->strand_vote; 
+              strand_votes += pivot->strand_vote; 
               pivRank += pivot->num_before_inc;
             }
           }

@@ -16,7 +16,6 @@
 //#include <zlib.h>
 
 //Own includes
-#include "csv.h"
 #include "map/include/base_types.hpp"
 #include "map/include/map_parameters.hpp"
 #include "map/include/commonFunc.hpp"
@@ -25,6 +24,7 @@
 //External includes
 #include "common/murmur3.h"
 #include "common/prettyprint.hpp"
+#include "csv.h"
 
 //#include "common/sparsehash/dense_hash_map"
 //#include "common/parallel-hashmap/parallel_hashmap/phmap.h"
@@ -61,7 +61,7 @@ namespace skch
       int freqThreshold = std::numeric_limits<int>::max();
 
       //Set of frequent seeds to be ignored
-      std::unordered_set<hash_t> frequentSeeds;
+      robin_hood::unordered_set<hash_t> frequentSeeds;
 
       //Make the default constructor private, non-accessible
       Sketch();
@@ -119,9 +119,11 @@ namespace skch
         :
           param(p) {
             this->build();
-            if (param.loadIndexFilename == "") {
-              if (param.saveIndexFilename != "") {
-                this->saveIndex();
+            if (!param.saveIndexFilename.empty()) {
+              if (param.saveIndexFilename.extension() == ".tsv") {
+                this->saveIndexTSV();
+              } else {
+                this->saveIndexBinary();
               }
             }
             this->index();
@@ -144,8 +146,12 @@ namespace skch
 
         //Create the thread pool 
         ThreadPool<InputSeqContainer, MI_Type> threadPool( [this](InputSeqContainer* e) {return buildHelper(e);}, param.threads);
-        if (param.loadIndexFilename != "") {
-          this->loadIndex();
+        if (!param.loadIndexFilename.empty()) {
+          if (param.loadIndexFilename.extension() == ".tsv") {
+            this->loadIndexTSV();
+          } else {
+            this->loadIndexBinary();
+          }
         }
 
         for(const auto &fileName : param.refSequences)
@@ -174,7 +180,7 @@ namespace skch
                 }
                 else
                 {
-                  if (param.loadIndexFilename == "") {
+                  if (param.loadIndexFilename.empty()) {
                     threadPool.runWhenThreadAvailable(new InputSeqContainer(seq, seq_name, seqCounter));
                     
                     //Collect output if available
@@ -188,13 +194,13 @@ namespace skch
           sequencesByFileInfo.push_back(seqCounter);
         }
 
-        if (param.loadIndexFilename == "") {
+        if (param.loadIndexFilename.empty()) {
           //Collect remaining output objects
           while ( threadPool.running() )
             this->buildHandleThreadOutput(threadPool.popOutputWhenAvailable());
         }
 
-        std::cerr << "[mashmap::skch::Sketch::build] minmers picked from reference = " << minmerIndex.size() << std::endl;
+        std::cerr << "[mashmap::skch::Sketch::build] minmer windows picked from reference = " << minmerIndex.size() << std::endl;
 
       }
 
@@ -234,23 +240,36 @@ namespace skch
 
 
       /**
-       * @brief  Save index for quick loading
+       * @brief  Save index. TSV indexing is slower but can be debugged easier
        */
-      void saveIndex() 
+      void saveIndexTSV() 
       {
         std::ofstream outStream;
-        outStream.open(param.saveIndexFilename, std::fstream::out);
-        outStream << "seqId" << "\t" << "strand" << "\t" << "start" << "\t" << "end" << "\t" << "hash" << std::endl;
+        outStream.open(param.saveIndexFilename);
+        outStream << "seqId" << "\t" << "strand" << "\t" << "start" << "\t" << "end" << "\t" << "hash\n";
         for (auto& mi : this->minmerIndex) {
-          outStream << mi.seqId << "\t" << std::to_string(mi.strand) << "\t" << mi.wpos << "\t" << mi.wpos_end << "\t" << mi.hash << std::endl;
+          outStream << mi.seqId << "\t" << std::to_string(mi.strand) << "\t" << mi.wpos << "\t" << mi.wpos_end << "\t" << mi.hash << "\n";
         }
         outStream.close(); 
       }
 
       /**
-       * @brief Load index from file
+       * @brief  Save index for quick loading
        */
-      void loadIndex() 
+      void saveIndexBinary() 
+      {
+        std::ofstream outStream;
+        outStream.open(param.saveIndexFilename, std::ios::binary);
+        typename MI_Type::size_type size = minmerIndex.size();
+        outStream.write((char*)&size, sizeof(size));
+        outStream.write((char*)&minmerIndex[0], minmerIndex.size() * sizeof(MinmerInfo));
+      }
+
+
+      /**
+       * @brief Load index from TSV file
+       */
+      void loadIndexTSV() 
       {
         io::CSVReader<5, io::trim_chars<' '>, io::no_quote_escape<'\t'>> inReader(param.loadIndexFilename);
         inReader.read_header(io::ignore_missing_column, "seqId", "strand", "start", "end", "hash");
@@ -262,6 +281,19 @@ namespace skch
         {
           this->minmerIndex.push_back(MinmerInfo {hash, seqId, start, end, strand});
         }
+      }
+
+      /**
+       * @brief Load index from binary file
+       */
+      void loadIndexBinary() 
+      {
+        std::ifstream inStream;
+        inStream.open(param.loadIndexFilename, std::ios::binary);
+        typename MI_Type::size_type size = 0;
+        inStream.read((char*)&size, sizeof(size));
+        minmerIndex.resize(size);
+        inStream.read((char*)&minmerIndex[0], minmerIndex.size() * sizeof(MinmerInfo));
       }
 
       /**

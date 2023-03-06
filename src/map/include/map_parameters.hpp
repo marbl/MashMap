@@ -8,6 +8,8 @@
 
 #include <vector>
 #include <unordered_set>
+#include <filesystem>
+namespace stdfs = std::filesystem;
 
 #include "common/ALeS.hpp"
 
@@ -48,10 +50,9 @@ struct Parameters
     std::vector<std::string> refSequences;            //reference sequence(s)
     std::vector<std::string> querySequences;          //query sequence(s)
     std::string outFileName;                          //output file name
-    std::string saveIndexFilename;                    //output file name of index
-    std::string loadIndexFilename;                    //input file name of index
+    stdfs::path saveIndexFilename;                    //output file name of index
+    stdfs::path loadIndexFilename;                    //input file name of index
     bool split;                                       //Split read mapping (done if this is true)
-    bool chain;                                       //Chain split reads together
     bool skip_self;                                   //skip self mappings
     bool skip_prefix;                                 //skip mappings to sequences with the same prefix
     char prefix_delim;                                //the prefix delimiter
@@ -86,7 +87,7 @@ double pval_cutoff = 1e-3;                          // p-value cutoff for determ
 float confidence_interval = 0.95;                   // Confidence interval to relax jaccard cutoff for mapping (0-1)
 float percentage_identity = 0.90;                   // Percent identity in the mapping step
 float ANIDiff = 0.0;                                // Stage 1 ANI diff threshold
-float ANIDiffConf = 0.95;                           // ANI diff confidence
+float ANIDiffConf = 0.999;                          // ANI diff confidence
 }
 }
 

@@ -12,11 +12,11 @@
 
 namespace skch
 {
-  typedef uint64_t hash_t;   //hash type
-  typedef int64_t offset_t;  //position within sequence
-  typedef int seqno_t;       //sequence counter in file
-  typedef int8_t strand_t;   //sequence strand 
-  typedef int8_t side_t;     //sequence strand 
+  typedef uint64_t hash_t;    //hash type
+  typedef int64_t offset_t;   //position within sequence
+  typedef uint64_t seqno_t;   //sequence counter in file
+  typedef int16_t strand_t;   //sequence strand 
+  typedef int8_t side_t;      //sequence strand 
 
   //C++ timer
   typedef std::chrono::high_resolution_clock Time;
