@@ -22,14 +22,14 @@ message(STATUS "CMAKE_BUILD_TYPE: ${CMAKE_BUILD_TYPE}")
 set(EXTRA_FLAGS "-pg")
 if (${CMAKE_BUILD_TYPE} MATCHES Release)
     #set(EXTRA_FLAGS "-Ofast -march=native -flto -fno-fat-lto-objects")
-    set(EXTRA_FLAGS "-Ofast -march=native")
-    set(CMAKE_CXX_FLAGS_RELEASE "-DNDEBUG") # reset CXX_FLAGS to replace -O3 with -Ofast
+    set(EXTRA_FLAGS "-g -Ofast -march=native")
+    set(CMAKE_CXX_FLAGS_RELEASE "-g -DNDEBUG") # reset CXX_FLAGS to replace -O3 with -Ofast
 endif ()
 
 if (${CMAKE_BUILD_TYPE} MATCHES Debug)
     # Debug use the defaults - so commenting out:
-    set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -O -g")# -fsanitize=address")
-    set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O -g") # -fsanitize=address")
+    set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -O -g")
+    set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O -g")
 else()
     # Use all standard-compliant optimizations - always add these:
     set (CMAKE_C_FLAGS "${OpenMP_C_FLAGS} ${PIC_FLAG} ${EXTRA_FLAGS}")
@@ -54,15 +54,25 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(assert)
 
+if (${CMAKE_BUILD_TYPE} MATCHES Debug)
+    add_compile_options(-fsanitize=address)
+    add_link_options(-fsanitize=address)
+endif ()
 
 add_executable(mashmap
   src/common/utils.cpp
-  src/interface/main.cpp) #$(CXX) $(CXXFLAGS) $(CPPFLAGS) -Lsrc/common/wflign/build/lib -Isrc/common/wflign/deps -Isrc/common $(SOURCE_1) -o wfmash @mathlib@ -lstdc++ -lz -lm -lpthread -lwflambda -lwflign
+  src/map/mash_map.cpp) #$(CXX) $(CXXFLAGS) $(CPPFLAGS) -Lsrc/common/wflign/build/lib -Isrc/common/wflign/deps -Isrc/common $(SOURCE_1) -o wfmash @mathlib@ -lstdc++ -lz -lm -lpthread -lwflambda -lwflign
+
+if (${CMAKE_BUILD_TYPE} MATCHES Debug)
+    add_compile_options(-fsanitize=address)
+    add_link_options(-fsanitize=address)
+endif ()
 
 target_include_directories(mashmap PRIVATE
   src
   src/common
   )
+
 
 target_link_libraries(mashmap
   gsl
