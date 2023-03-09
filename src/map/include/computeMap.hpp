@@ -855,7 +855,9 @@ namespace skch
               return;
             } else 
             {
-              minimumHits = sketchCutoffs[std::min(bestIntersectionSize, Q.sketchSize)];
+              minimumHits = std::max(
+                  sketchCutoffs[std::min(bestIntersectionSize, Q.sketchSize)],
+                  minimumHits);
             }
           } 
 
