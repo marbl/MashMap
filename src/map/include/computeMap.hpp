@@ -15,6 +15,7 @@
 #include <cassert>
 #include <numeric>
 #include <iostream>
+#include <pthread.h>
 
 //Own includes
 #include "map/include/base_types.hpp"
@@ -69,8 +70,8 @@ namespace skch
       {
         seqno_t seqId;                    //sequence id where read is mapped
         offset_t meanOptimalPos;          //Among multiple consecutive optimal positions, save the avg.
-        //Sketch::MIIter_t optimalStart;    //optimal start mapping position (begin iterator)
-        //Sketch::MIIter_t optimalEnd;      //optimal end mapping position (end iterator)
+        offset_t optimalStart;            //optimal start mapping position (begin iterator)
+        offset_t optimalEnd;              //optimal end mapping position (end iterator)
         int sharedSketchSize;             //count of shared sketch elements
         strand_t strand;
       };
@@ -100,6 +101,11 @@ namespace skch
       //for an L1 candidate if the best intersection size is i;
       std::vector<int> sketchCutoffs; 
 
+      //Vectors to compute Ex[ANI] given S(A) \cap S(B_i)
+      std::vector<std::vector<bool>> expectedANIfromIntersectionCache; 
+      std::vector<std::vector<pthread_mutex_t>> expectedANIfromIntersectionLocks; 
+      std::vector<std::vector<double>> expectedANIfromIntersection; 
+
     public:
 
       /**
@@ -112,16 +118,52 @@ namespace skch
           PostProcessResultsFn_t f = nullptr) :
         param(p),
         sketchCutoffs(p.sketchSize + 1, 1),
+        expectedANIfromIntersectionCache(p.sketchSize + 1, std::vector<bool>(p.sketchSize + 1, false)),
+        expectedANIfromIntersectionLocks(p.sketchSize + 1, std::vector<pthread_mutex_t>(p.sketchSize + 1)),
+        expectedANIfromIntersection(p.sketchSize + 1, std::vector<double>(p.sketchSize + 1, 0)),
         refSketch(refsketch),
         processMappingResults(f)
     {
-      if (p.stage1_topANI_filter) {
+      if (p.approximateMinHash) 
+      {
+        for (int ss=0; ss < p.sketchSize; ss++) 
+        {
+          for (int c=0; c <= ss; c++) 
+          {
+            pthread_mutex_init(&expectedANIfromIntersectionLocks[ss][c], NULL);
+          }
+        }
+      }
+      if (p.stage1_topANI_filter) 
+      {
         this->setProbs();
       }
       this->mapQuery();
     }
 
     private:
+
+      double getExpectedANIfromIntersection(int ss, int c)
+      {
+        
+        if (!expectedANIfromIntersectionCache[ss][c])
+        {
+          pthread_mutex_lock(&expectedANIfromIntersectionLocks[ss][c]);
+          if (!expectedANIfromIntersectionCache[ss][c])
+          {
+            double exANI = 0;
+            for (double y = 0; y <= c; y++) 
+            {
+              double prY = gsl_ran_hypergeometric_pdf(y, ss, ss-c, c);
+              exANI += prY * (1 - Stat::j2md(y/ss, param.kmerSize));
+            }
+            expectedANIfromIntersection[ss][c] = exANI;
+            expectedANIfromIntersectionCache[ss][c] = true;
+          }
+          pthread_mutex_unlock(&expectedANIfromIntersectionLocks[ss][c]);
+        }
+        return expectedANIfromIntersection[ss][c];
+      }
 
       void setProbs() 
       {
@@ -137,7 +179,8 @@ namespace skch
         );
         for (auto ci = 0; ci <= ss; ci++) 
         {
-          for (double y = 0; y <= ci; y++) {
+          for (double y = 0; y <= ci; y++) 
+          {
             sketchProbs[ci][y] = gsl_ran_hypergeometric_pdf(y, ss, ss-ci, ci);
           }
         }
@@ -971,17 +1014,45 @@ namespace skch
           for(auto &candidateLocus: l1Mappings)
           {
             std::vector<L2_mapLocus_t> l2_vec;
-            computeL2MappedRegions(Q, candidateLocus, l2_vec);
+            if (!param.approximateMinHash) {
+              computeL2MappedRegions(Q, candidateLocus, l2_vec);
+            }
+            else 
+            {
+              l2_vec.push_back(
+                L2_mapLocus_t {
+                  candidateLocus.seqId,
+                  candidateLocus.rangeStartPos + ((int)(candidateLocus.rangeStartPos - candidateLocus.rangeEndPos) / 2),
+                  candidateLocus.rangeStartPos,
+                  candidateLocus.rangeEndPos,
+                  (int) (((float)(2*param.sketchSize - candidateLocus.intersectionSize)) / param.sketchSize) * candidateLocus.intersectionSize,
+                  candidateLocus.strand
+                }
+              );
+            }
             for (auto& l2 : l2_vec) 
             {
-              //Compute mash distance using calculated jaccard
-              float mash_dist = Stat::j2md(1.0 * l2.sharedSketchSize/Q.sketchSize, param.kmerSize);
+              float nucIdentity;
+              float nucIdentityUpperBound;
+              if (!param.approximateMinHash) {
+                //Compute mash distance using calculated jaccard
+                float mash_dist = Stat::j2md(1.0 * l2.sharedSketchSize/Q.sketchSize, param.kmerSize);
 
-              //Compute lower bound to mash distance within 95% confidence interval
-              float mash_dist_lower_bound = Stat::md_lower_bound(mash_dist, Q.sketchSize, param.kmerSize, skch::fixed::confidence_interval);
+                //Compute lower bound to mash distance within 95% confidence interval
+                float mash_dist_lower_bound = Stat::md_lower_bound(mash_dist, Q.sketchSize, param.kmerSize, skch::fixed::confidence_interval);
 
-              float nucIdentity = (1 - mash_dist);
-              float nucIdentityUpperBound = (1 - mash_dist_lower_bound);
+                nucIdentity = (1 - mash_dist);
+                nucIdentityUpperBound = (1 - mash_dist_lower_bound);
+              }
+              else 
+              {
+                nucIdentity = getExpectedANIfromIntersection(Q.sketchSize, l2.sharedSketchSize);
+                nucIdentityUpperBound = 1 - Stat::md_lower_bound(
+                    Stat::j2md(double(l2.sharedSketchSize) / Q.sketchSize, param.kmerSize),
+                    Q.sketchSize,
+                    param.kmerSize,
+                    skch::fixed::confidence_interval);
+              }
 
               //Report the alignment if it passes our identity threshold and,
               // if we are in all-vs-all mode, it isn't a self-mapping,
@@ -1137,8 +1208,8 @@ namespace skch
               l2_out.sharedSketchSize = slideMap.sharedSketchElements;
 
               //Save the position
-              beginOptimalPos = windowIt->wpos - windowLen;
-              lastOptimalPos = std::next(windowIt, windowIt != minmerIndex.end())->wpos - windowLen;
+              l2_out.optimalStart = windowIt->wpos - windowLen;
+              l2_out.optimalEnd = std::next(windowIt, windowIt != minmerIndex.end())->wpos - windowLen;
             }
             else if(slideMap.sharedSketchElements == bestSketchSize)
             {
@@ -1146,17 +1217,17 @@ namespace skch
                 l2_out.sharedSketchSize = slideMap.sharedSketchElements;
 
                 //Save the position
-                beginOptimalPos = windowIt->wpos - windowLen;
+                l2_out.optimalStart = windowIt->wpos - windowLen;
               }
 
               in_candidate = true;
               //Still save the position
-              lastOptimalPos = windowIt->wpos - windowLen;
+              l2_out.optimalEnd = windowIt->wpos - windowLen;
             } else {
               if (in_candidate) {
                 // Save and reset
-                lastOptimalPos = windowIt->wpos - windowLen;
-                l2_out.meanOptimalPos =  (beginOptimalPos + lastOptimalPos) / 2;
+                l2_out.optimalEnd = windowIt->wpos - windowLen;
+                l2_out.meanOptimalPos =  (l2_out.optimalStart + l2_out.optimalEnd) / 2;
                 l2_out.seqId = windowIt->seqId;
                 l2_out.strand = prev_strand_votes >= 0 ? strnd::FWD : strnd::REV;
                 l2_vec_out.push_back(l2_out);
@@ -1170,7 +1241,7 @@ namespace skch
           }
           if (in_candidate) {
             // Save and reset
-            l2_out.meanOptimalPos =  (beginOptimalPos + lastOptimalPos) / 2;
+            l2_out.meanOptimalPos =  (l2_out.optimalStart + l2_out.optimalEnd) / 2;
             l2_out.seqId = std::prev(windowIt)->seqId;
             l2_out.strand = slideMap.strand_votes >= 0 ? strnd::FWD : strnd::REV;
             l2_vec_out.push_back(l2_out);
