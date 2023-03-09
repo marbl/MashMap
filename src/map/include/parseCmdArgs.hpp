@@ -73,7 +73,7 @@ sequences shorter than segment length will be ignored", ArgvParser::OptionRequir
     cmd.defineOption("perc_identity", "threshold for identity [default : 85]", ArgvParser::OptionRequiresValue);
     cmd.defineOptionAlternative("perc_identity","pi");
 
-    cmd.defineOption("dropLowMapId", "drop mappings with estimated identity below --map-pct-id=\%", ArgvParser::OptionRequiresValue);
+    cmd.defineOption("dropLowMapId", "drop mappings with estimated identity below --perc_identity=\%");
     cmd.defineOptionAlternative("dropLowMapId", "K");
 
     cmd.defineOption("threads", "count of threads for parallel execution [default : 1]", ArgvParser::OptionRequiresValue);

@@ -105,6 +105,7 @@ namespace skch
       std::vector<std::vector<bool>> expectedANIfromIntersectionCache; 
       std::vector<std::vector<pthread_mutex_t>> expectedANIfromIntersectionLocks; 
       std::vector<std::vector<double>> expectedANIfromIntersection; 
+      std::vector<std::vector<double>> expectedANIfromIntersectionUB; 
 
     public:
 
@@ -121,6 +122,7 @@ namespace skch
         expectedANIfromIntersectionCache(p.sketchSize + 1, std::vector<bool>(p.sketchSize + 1, false)),
         expectedANIfromIntersectionLocks(p.sketchSize + 1, std::vector<pthread_mutex_t>(p.sketchSize + 1)),
         expectedANIfromIntersection(p.sketchSize + 1, std::vector<double>(p.sketchSize + 1, 0)),
+        expectedANIfromIntersectionUB(p.sketchSize + 1, std::vector<double>(p.sketchSize + 1, 0)),
         refSketch(refsketch),
         processMappingResults(f)
     {
@@ -152,12 +154,26 @@ namespace skch
           if (!expectedANIfromIntersectionCache[ss][c])
           {
             double exANI = 0;
+            double exLB = 0;
+            double cdf = 0;
             for (double y = 0; y <= c; y++) 
             {
               double prY = gsl_ran_hypergeometric_pdf(y, ss, ss-c, c);
               exANI += prY * (1 - Stat::j2md(y/ss, param.kmerSize));
+              exLB += prY * Stat::md_lower_bound(
+                    Stat::j2md(y/ss, param.kmerSize),
+                    ss,
+                    param.kmerSize,
+                    skch::fixed::confidence_interval);
+              //cdf += prY;
+              //if (cdf > (skch::fixed::confidence_interval)) 
+              //{
+                //expectedANIfromIntersectionUB[ss][c] = 1 -  Stat::j2md(y/ss, param.kmerSize);
+                //cdf = -1;
+              //}
             }
             expectedANIfromIntersection[ss][c] = exANI;
+            expectedANIfromIntersectionUB[ss][c] = 1 - exLB;
             expectedANIfromIntersectionCache[ss][c] = true;
           }
           pthread_mutex_unlock(&expectedANIfromIntersectionLocks[ss][c]);
@@ -1047,11 +1063,12 @@ namespace skch
               else 
               {
                 nucIdentity = getExpectedANIfromIntersection(Q.sketchSize, l2.sharedSketchSize);
-                nucIdentityUpperBound = 1 - Stat::md_lower_bound(
-                    Stat::j2md(double(l2.sharedSketchSize) / Q.sketchSize, param.kmerSize),
-                    Q.sketchSize,
-                    param.kmerSize,
-                    skch::fixed::confidence_interval);
+                nucIdentityUpperBound = expectedANIfromIntersectionUB[Q.sketchSize][l2.sharedSketchSize];
+                //nucIdentityUpperBound = 1 - Stat::md_lower_bound(
+                    //Stat::j2md(double(l2.sharedSketchSize) / Q.sketchSize, param.kmerSize),
+                    //Q.sketchSize,
+                    //param.kmerSize,
+                    //skch::fixed::confidence_interval);
               }
 
               //Report the alignment if it passes our identity threshold and,
