@@ -442,6 +442,7 @@ namespace skch
         if(! param.split || input->len <= param.block_length)
         {
           QueryMetaData <MinVec_Type> Q;
+          Q.minmerTableQuery.reserve(param.sketchSize + 1);
           Q.seq = &(input->seq)[0u];
           Q.len = input->len;
           Q.fullLen = input->len;
@@ -468,6 +469,7 @@ namespace skch
           {
             //Prepare fragment sequence object
             QueryMetaData <MinVec_Type> Q;
+            Q.minmerTableQuery.reserve(param.sketchSize + 1);
             Q.seq = &(input->seq)[0u] + i * param.segLength;
             Q.len = param.segLength;
             Q.fullLen = input->len;
@@ -495,6 +497,7 @@ namespace skch
           {
             //Prepare fragment sequence object
             QueryMetaData <MinVec_Type> Q;
+            Q.minmerTableQuery.reserve(param.sketchSize + 1);
             Q.seq = &(input->seq)[0u] + input->len - param.segLength;
             Q.len = param.segLength;
             Q.seqCounter = input->seqCounter;
@@ -634,7 +637,6 @@ namespace skch
       template <typename Q_Info>
         void getSeedHits(Q_Info &Q)
         {
-          Q.minmerTableQuery.reserve(param.sketchSize);
           CommonFunc::sketchSequence(Q.minmerTableQuery, Q.seq, Q.len, param.kmerSize, param.alphabetSize, param.sketchSize, Q.seqCounter);
           if(Q.minmerTableQuery.size() == 0) {
             Q.sketchSize = 0;
@@ -792,6 +794,9 @@ namespace skch
             if (bestIntersectionSize < minimumHits) 
             {
               return;
+            } else 
+            {
+              minimumHits = sketchCutoffs[std::min(bestIntersectionSize, Q.sketchSize)];
             }
           } 
 
@@ -857,11 +862,8 @@ namespace skch
               }
               leadingIt++;
             }
-          if ((!param.stage1_topANI_filter && prevOverlap >= minimumHits)
-              || prevOverlap >= bestIntersectionSize 
-              || (prevOverlap >= sketchCutoffs[bestIntersectionSize] 
+          if ( prevOverlap >= minimumHits
               //&& prevOverlap > overlapCount && prevOverlap >= prevPrevOverlap)
-             )
           ) {
             if (l1_out.seqId != prevPos.seqId && in_candidate) {
               localOpts.push_back(l1_out);
