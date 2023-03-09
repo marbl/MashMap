@@ -14,7 +14,7 @@ namespace skch
 {
   typedef uint64_t hash_t;    //hash type
   typedef int64_t offset_t;   //position within sequence
-  typedef uint64_t seqno_t;   //sequence counter in file
+  typedef int64_t seqno_t;   //sequence counter in file
   typedef int16_t strand_t;   //sequence strand 
   typedef int8_t side_t;      //sequence strand 
 
@@ -136,6 +136,7 @@ namespace skch
     offset_t queryEndPos;                               //end position of the query for this mapping
     seqno_t refSeqId;                                   //internal sequence id of the reference contig
     seqno_t querySeqId;                                 //internal sequence id of the query sequence
+    seqno_t segIdx;                                                    //segment of query sequence
     int blockLength;                                    //the block length of the mapping
     float nucIdentity;                                  //calculated identity
     float nucIdentityUpperBound;                        //upper bound on identity (90% C.I.)
@@ -223,6 +224,7 @@ namespace skch
     {
       char *seq;                          //query sequence pointer
       seqno_t seqCounter;                 //query sequence counter
+      seqno_t segIdx;                     //query sequence segment idx (within sequence)
       offset_t len;                       //length of this query sequence
       offset_t fullLen;                   //length of the full sequence it derives from
       int sketchSize;                     //sketch size
