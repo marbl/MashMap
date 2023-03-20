@@ -39,12 +39,10 @@ struct Parameters
     int alphabetSize;                                 //alphabet size
     uint64_t referenceSize;                           //Approximate reference size
     float percentageIdentity;                         //user defined threshold for good similarity
-    bool approximateMinHash;                          //Skip stage 2 filtering and use estimated ANI
     bool stage2_full_scan;                            //Instead of using the best intersection for a given candidate region, compute the minhash for every position in the window
     bool stage1_topANI_filter;                        //Use the ANI filter in stage 1
     float ANIDiff;                                    //ANI distance threshold below best mapping to retain in stage 1 filtering
     float ANIDiffConf;                                //Confidence of stage 1 ANI filtering threshold
-    uint32_t maxL1;                                   //Maximum number of mappings from L1 stage
     int filterMode;                                   //filtering mode in mashmap
     uint32_t numMappingsForSegment;                   //how many mappings to retain for each segment
     uint32_t numMappingsForShortSequence;             //how many secondary alignments we keep for reads < segLength
@@ -89,7 +87,7 @@ double pval_cutoff = 1e-3;                          // p-value cutoff for determ
 float confidence_interval = 0.95;                   // Confidence interval to relax jaccard cutoff for mapping (0-1)
 float percentage_identity = 0.90;                   // Percent identity in the mapping step
 float ANIDiff = 0.0;                                // Stage 1 ANI diff threshold
-float ANIDiffConf = 0.95;                          // ANI diff confidence
+float ANIDiffConf = 0.999;                          // ANI diff confidence
 }
 }
 

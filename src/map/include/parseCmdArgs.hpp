@@ -29,7 +29,7 @@ namespace skch
   void initCmdParser(CommandLineProcessing::ArgvParser &cmd)
   {
     cmd.setIntroductoryDescription("-----------------\n\
-Mashmap is an approximate long read or contig mapper based on Jaccard similarity\n\
+Mashmap is an pproximate long read or contig mapper based on Jaccard similarity\n\
 -----------------\n\
 Example usage: \n\
 $ mashmap -r ref.fa -q seq.fq [OPTIONS]\n\
@@ -95,8 +95,6 @@ sequences shorter than segment length will be ignored", ArgvParser::OptionRequir
     cmd.defineOption("noHgFilter", "Don't use the hypergeometric filtering and instead use the MashMap2 first pass filtering.");
     cmd.defineOption("hgFilterAniDiff", "Filter out mappings unlikely to be this ANI less than the best mapping [default: 0.0]", ArgvParser::OptionRequiresValue);
     cmd.defineOption("hgFilterConf", "Confidence value for the hypergeometric filtering [default: 0.999]", ArgvParser::OptionRequiresValue);
-    cmd.defineOption("maxL1", "Maximum number of candidate regions to consider [default: unlimited]", ArgvParser::OptionRequiresValue);
-    cmd.defineOption("approxMH", "");
 
     cmd.defineOption("skipSelf", "skip self mappings when the query and target name is the same (for all-vs-all mode)");
     cmd.defineOptionAlternative("skipSelf", "X");
@@ -207,11 +205,6 @@ sequences shorter than segment length will be ignored", ArgvParser::OptionRequir
       std::cerr << "[mashmap] " << "Hypergeometric filter w/ delta = " << parameters.ANIDiff << " and confidence " << parameters.ANIDiffConf << std::endl;
     else
       std::cerr << "[mashmap] " <<  "No hypergeometric filter" << std::endl;
-    if (parameters.maxL1) 
-      std::cerr << "[mashmap] " <<  "At most " << parameters.maxL1 << " L1 candidate regions per segment" << std::endl;
-    else
-      std::cerr << "[mashmap] " <<  "Unlimited L1 candidate regions per segment" << std::endl;
-
     std::cerr << "[mashmap] Mapping output file = " << parameters.outFileName << std::endl;
     std::cerr << "[mashmap] Filter mode = " << parameters.filterMode << " (1 = map, 2 = one-to-one, 3 = none)" << std::endl;
     std::cerr << "[mashmap] Execution threads  = " << parameters.threads << std::endl;
@@ -299,7 +292,6 @@ sequences shorter than segment length will be ignored", ArgvParser::OptionRequir
         parameters.skip_self = false;
     }
 
-    parameters.approximateMinHash = cmd.foundOption("approxMH");
 
     if (cmd.foundOption("skipPrefix"))
     {
@@ -510,14 +502,6 @@ sequences shorter than segment length will be ignored", ArgvParser::OptionRequir
     } else {
       parameters.ANIDiffConf = skch::fixed::ANIDiffConf;
     }
-    str.clear();
-
-    if (cmd.foundOption("maxL1")) {
-      str << cmd.optionValue("maxL1");
-      str >> parameters.maxL1;
-    }
-    else 
-      parameters.maxL1 = 0;
     str.clear();
 
     parameters.stage2_full_scan = !cmd.foundOption("shortenCandidateRegions");

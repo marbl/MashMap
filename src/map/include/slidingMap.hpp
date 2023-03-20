@@ -16,7 +16,7 @@
 #include "map/include/base_types.hpp"
 
 //External includes
-#include "assert.hpp"
+//#include "assert.hpp"
 
 namespace skch
 {
@@ -70,6 +70,8 @@ namespace skch
         // Count of strand votes
         int strand_votes;
 
+        // Count of S(A) & S(B)
+        int intersectionSize;
 
         //Delete default constructor
         SlideMapper() = delete;
@@ -82,6 +84,7 @@ namespace skch
           Q(Q_),
           slidingWindowMinhashes(Q.sketchSize + 1),
           sharedSketchElements(0),
+          intersectionSize(0),
           strand_votes(0)
         {
           this->init();
@@ -139,6 +142,7 @@ namespace skch
           if (insert_loc->hash == mi.hash) {
             insert_loc->active = true;
             insert_loc->strand_vote += (insert_loc->q_strand * mi.strand);
+            intersectionSize++;
 
             // If minmer matches and is <= pivot, sharedSketchElements++
             if (insert_loc->hash <= pivot->hash) {
@@ -189,6 +193,7 @@ namespace skch
             }
             insert_loc->active = false;
             insert_loc->strand_vote = 0;
+            intersectionSize--;
           } 
           // Else decrement num_before_inc of curr
           else {

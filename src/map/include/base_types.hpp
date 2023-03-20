@@ -14,7 +14,7 @@ namespace skch
 {
   typedef uint64_t hash_t;    //hash type
   typedef int64_t offset_t;   //position within sequence
-  typedef int64_t seqno_t;   //sequence counter in file
+  typedef int32_t seqno_t;   //sequence counter in file
   typedef int16_t strand_t;   //sequence strand 
   typedef int8_t side_t;      //sequence strand 
 
@@ -25,9 +25,9 @@ namespace skch
   struct MinmerInfo
   {
     hash_t hash;                              //hash value
-    seqno_t seqId;                            //sequence or contig id
     offset_t wpos;                            //First (left-most) window position when the minimizer is saved
     offset_t wpos_end;
+    seqno_t seqId;                            //sequence or contig id
     strand_t strand;                          //strand information
 
     //Lexographical equality comparison
@@ -56,8 +56,35 @@ namespace skch
     }
   };
 
+  // Endpoints for minmer intervals
+  struct IntervalPoint
+  {
+    offset_t pos;
+    hash_t hash;
+    seqno_t seqId;
+    side_t side;
+
+    // Sort interval points. 
+    // For a pair of points at the same seqId/pos, the end point should be first
+    bool operator <(const IntervalPoint& x) const {
+      return std::tie(seqId, pos, side) 
+        < std::tie(x.seqId, x.pos, x.side);
+    }
+  };
+
+  template <class It>
+  struct boundPtr {
+    It it;
+    It end;
+
+    bool operator<(const boundPtr& other) const {
+      return *it < *(other.it);
+    }
+  };
+
+
   typedef hash_t MinmerMapKeyType;
-  typedef std::vector<MinmerInfo> MinmerMapValueType;
+  typedef std::vector<IntervalPoint> MinmerMapValueType;
 
   //Metadata recording for contigs in the reference DB
   struct ContigInfo
@@ -101,21 +128,12 @@ namespace skch
     offset_t pos;
   };
 
-  // Endpoints for minmer intervals
-  struct IntervalPoint
+  struct KmerInfo
   {
+    hash_t hash;
     seqno_t seqId;
     offset_t pos;
-    hash_t hash;
-    side_t side;
-    strand_t strand;
-
-    // Sort interval points. 
-    // For a pair of points at the same seqId/pos, the end point should be first
-    bool operator <(const IntervalPoint& x) const {
-      return std::tie(seqId, pos, side) 
-        < std::tie(x.seqId, x.pos, x.side);
-    }
+    strand_t strand; 
   };
 
   template <class T>
@@ -136,7 +154,6 @@ namespace skch
     offset_t queryEndPos;                               //end position of the query for this mapping
     seqno_t refSeqId;                                   //internal sequence id of the reference contig
     seqno_t querySeqId;                                 //internal sequence id of the query sequence
-    seqno_t segIdx;                                                    //segment of query sequence
     int blockLength;                                    //the block length of the mapping
     float nucIdentity;                                  //calculated identity
     float nucIdentityUpperBound;                        //upper bound on identity (90% C.I.)
@@ -224,7 +241,6 @@ namespace skch
     {
       char *seq;                          //query sequence pointer
       seqno_t seqCounter;                 //query sequence counter
-      seqno_t segIdx;                     //query sequence segment idx (within sequence)
       offset_t len;                       //length of this query sequence
       offset_t fullLen;                   //length of the full sequence it derives from
       int sketchSize;                     //sketch size

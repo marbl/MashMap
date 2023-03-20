@@ -13,6 +13,9 @@
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
+#include <filesystem>
+namespace fs = std::filesystem;
+
 //#include <zlib.h>
 
 //Own includes
@@ -34,7 +37,7 @@
 
 #include "common/seqiter.hpp"
 
-#include "assert.hpp"
+//#include "assert.hpp"
 
 namespace skch
 {
@@ -119,14 +122,15 @@ namespace skch
         :
           param(p) {
             this->build();
+            this->index();
             if (!param.saveIndexFilename.empty()) {
               if (param.saveIndexFilename.extension() == ".tsv") {
                 this->saveIndexTSV();
               } else {
                 this->saveIndexBinary();
               }
+              this->savePosListBinary();
             }
-            this->index();
             this->computeFreqHist();
             this->computeFreqSeedSet();
             this->dropFreqSeedSet();
@@ -265,6 +269,27 @@ namespace skch
         outStream.write((char*)&minmerIndex[0], minmerIndex.size() * sizeof(MinmerInfo));
       }
 
+      /**
+       * @brief  Save posList for quick loading
+       */
+      void savePosListBinary() 
+      {
+        fs::path posListFilename = fs::path(param.saveIndexFilename).replace_extension(".map");
+        std::ofstream outStream;
+        outStream.open(posListFilename, std::ios::binary);
+        typename MI_Map_t::size_type size = minmerPosLookupIndex.size();
+        outStream.write((char*)&size, sizeof(size));
+
+        for (auto& [hash, ipVec] : minmerPosLookupIndex) 
+        {
+          MinmerMapKeyType key = hash;
+          outStream.write((char*)&key, sizeof(key));
+          typename MI_Type::size_type size = ipVec.size();
+          outStream.write((char*)&size, sizeof(size));
+          outStream.write((char*)&ipVec[0], ipVec.size() * sizeof(MinmerMapValueType::value_type));
+        }
+      }
+
 
       /**
        * @brief Load index from TSV file
@@ -279,7 +304,7 @@ namespace skch
         seqno_t seqId;
         while (inReader.read_row(seqId, strand, start, end, hash))
         {
-          this->minmerIndex.push_back(MinmerInfo {hash, seqId, start, end, strand});
+          this->minmerIndex.push_back(MinmerInfo {hash, start, end, seqId, strand});
         }
       }
 
@@ -297,20 +322,56 @@ namespace skch
       }
 
       /**
+       * @brief  Save posList for quick loading
+       */
+      void loadPosListBinary() 
+      {
+        fs::path posListFilename = fs::path(param.loadIndexFilename).replace_extension(".map");
+        std::ifstream inStream;
+        inStream.open(posListFilename, std::ios::binary);
+        typename MI_Map_t::size_type numKeys = 0;
+        inStream.read((char*)&numKeys, sizeof(numKeys));
+
+        for (auto idx = 0; idx < numKeys; idx++) 
+        {
+          MinmerMapKeyType key = 0;
+          inStream.read((char*)&key, sizeof(key));
+          typename MinmerMapValueType::size_type size = 0;
+          inStream.read((char*)&size, sizeof(size));
+
+          minmerPosLookupIndex[key].resize(size);
+          inStream.read((char*)&minmerPosLookupIndex[key][0], size * sizeof(MinmerMapValueType::value_type));
+
+        }
+      }
+
+      /**
        * @brief   build the index for fast lookups using minmer table
        */
       void index()
       {
         //Parse all the minmers and push into the map
         //minmerPosLookupIndex.set_empty_key(0);
-
-        for(auto &e : minmerIndex)
+        if (param.loadIndexFilename.empty())
         {
-          // [hash value -> info about minmer]
-          minmerPosLookupIndex[e.hash].push_back(e);
-
+          for(auto &mi : minmerIndex)
+          {
+            // [hash value -> info about minmer]
+            if (minmerPosLookupIndex[mi.hash].size() == 0 
+                || minmerPosLookupIndex[mi.hash].back().hash != mi.hash 
+                || minmerPosLookupIndex[mi.hash].back().pos != mi.wpos)
+            {
+              minmerPosLookupIndex[mi.hash].push_back(IntervalPoint {mi.wpos, mi.hash, mi.seqId, side::OPEN});
+              minmerPosLookupIndex[mi.hash].push_back(IntervalPoint {mi.wpos_end, mi.hash, mi.seqId, side::CLOSE});
+            } else {
+              minmerPosLookupIndex[mi.hash].back().pos = mi.wpos_end;
+            }
+          }
         }
-
+        else
+        {
+          this->loadPosListBinary();
+        }
         std::cerr << "[mashmap::skch::Sketch::index] unique minmers = " << minmerPosLookupIndex.size() << std::endl;
       }
 
@@ -326,7 +387,7 @@ namespace skch
               for (auto &e : this->minmerPosLookupIndex)
                   this->minmerFreqHistogram[e.second.size()] += 1;
 
-              std::cerr << "[mashmap::skch::Sketch::computeFreqHist] Frequency histogram of minmers = "
+              std::cerr << "[mashmap::skch::Sketch::computeFreqHist] Frequency histogram of minmer interval points = "
                         << *this->minmerFreqHistogram.begin() << " ... " << *this->minmerFreqHistogram.rbegin()
                         << std::endl;
 
