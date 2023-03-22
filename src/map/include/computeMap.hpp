@@ -766,56 +766,6 @@ namespace skch
           // Only necessary when windowLen != 0.
           std::unordered_map<hash_t, int> hash_to_freq;
           
-          if (param.stage1_topANI_filter) {
-            while (leadingIt != intervalPoints.end())
-            {
-              // Catch the trailing iterator up to the leading iterator - windowLen
-              while (
-                  trailingIt != intervalPoints.end() 
-                  && ((trailingIt->seqId == leadingIt->seqId && trailingIt->pos <= leadingIt->pos - windowLen)
-                    || trailingIt->seqId < leadingIt->seqId))
-              {
-                if (trailingIt->side == side::CLOSE) {
-                  if (windowLen != 0)
-                    hash_to_freq[trailingIt->hash]--;
-                  if (windowLen == 0 || hash_to_freq[trailingIt->hash] == 0) {
-                    overlapCount--;
-                  }
-                }
-                trailingIt++;
-              }
-              auto currentPos = leadingIt->pos;
-              while (leadingIt != intervalPoints.end() && leadingIt->pos == currentPos) {
-                if (leadingIt->side == side::OPEN) {
-                  if (windowLen == 0 || hash_to_freq[leadingIt->hash] == 0) {
-                    overlapCount++;
-                  }
-                  if (windowLen != 0)
-                    hash_to_freq[leadingIt->hash]++;
-                }
-                leadingIt++;
-              }
-
-              //DEBUG_ASSERT(overlapCount >= 0, windowLen, trailingIt->seqId, trailingIt->pos, leadingIt->seqId, leadingIt->pos);
-              //DEBUG_ASSERT(windowLen != 0 || overlapCount <= Q.sketchSize, windowLen, trailingIt->seqId, trailingIt->pos, leadingIt->seqId, leadingIt->pos);
-
-              //Is this sliding window the best we have so far?
-              bestIntersectionSize = std::max(bestIntersectionSize, overlapCount);
-            }
-
-            // Only go back through to find local opts if we know that there are some that are 
-            // large enough
-            if (bestIntersectionSize < minimumHits) 
-            {
-              return;
-            } else 
-            {
-              minimumHits = std::max(
-                  sketchCutoffs[std::min(bestIntersectionSize, Q.sketchSize)],
-                  minimumHits);
-            }
-          } 
-
           // Clear freq dict, as there will be left open CLOSE points at the end of the last seq
           // that we never got to
           hash_to_freq.clear();
@@ -1069,6 +1019,8 @@ namespace skch
               loc_iterator++;
             }
           }
+          std::sort(l2Mappings.begin(), l2Mappings.end(), [](auto& a, auto& b) 
+              { return std::tie(a.refSeqId, a.refStartPos) < std::tie(b.refSeqId, b.refStartPos); });
           //std::cerr << "For an segment with " << l1Mappings.size()
             //<< " L1 mappings "
             //<< " there were " << l2Mappings.size() << " L2 mappings\n";
@@ -1186,6 +1138,9 @@ namespace skch
             //Is this sliding window the best we have so far?
             if (slideMap.sharedSketchElements > bestSketchSize)
             {
+              // Get rid of all candidates seen so far
+              l2_vec_out.clear();
+
               in_candidate = true;
               bestSketchSize = slideMap.sharedSketchElements;
               l2_out.sharedSketchSize = slideMap.sharedSketchElements;
@@ -1223,9 +1178,7 @@ namespace skch
                 l2_out.seqId = windowIt->seqId;
                 l2_out.strand = prev_strand_votes >= 0 ? strnd::FWD : strnd::REV;
                 if (l2_vec_out.empty() 
-                    || (l2_vec_out.back().sharedSketchSize != l2_out.sharedSketchSize 
-                      || l2_vec_out.back().seqId == l2_out.seqId
-                      || l2_vec_out.back().optimalEnd + param.segLength < l2_out.optimalStart))
+                    || l2_vec_out.back().optimalEnd + param.segLength < l2_out.optimalStart)
                 {
                   l2_vec_out.push_back(l2_out);
                 }
@@ -1249,19 +1202,6 @@ namespace skch
             l2_out.strand = slideMap.strand_votes >= 0 ? strnd::FWD : strnd::REV;
             l2_vec_out.push_back(l2_out);
           }
-
-          // Because each L2 mapping is a "best seen so far," they are naturally increasing in order
-          // We can just keep the best mappings per region, however this could fail in cases 
-          // where a single candidate region has multiple mappings (i.e. tandem repeats the same
-          // size as the segment length)
-          l2_vec_out.erase(
-              std::remove_if(
-                l2_vec_out.begin(), 
-                l2_vec_out.end(), 
-                [&bestSketchSize](L2_mapLocus_t &l2) {
-                  return l2.sharedSketchSize < bestSketchSize;}
-              ),
-              l2_vec_out.end());
         }
 
 
