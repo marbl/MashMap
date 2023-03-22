@@ -483,6 +483,7 @@ sequences shorter than segment length will be ignored", ArgvParser::OptionRequir
     if (cmd.foundOption("hgFilterAniDiff")) {
       str << cmd.optionValue("hgFilterAniDiff");
       str >> parameters.ANIDiff;
+      parameters.ANIDiff /= 100;
       if (parameters.ANIDiff < 0 ||  parameters.ANIDiff > 100) {
         std::cerr << "ERROR, skch::parseandSave, ANI difference must be between 0 and 100" << std::endl;
         exit(1);
@@ -495,6 +496,7 @@ sequences shorter than segment length will be ignored", ArgvParser::OptionRequir
     if (cmd.foundOption("hgFilterConf")) {
       str << cmd.optionValue("hgFilterConf");
       str >> parameters.ANIDiffConf;
+      parameters.ANIDiffConf /= 100;
       if (parameters.ANIDiffConf < 0 ||  parameters.ANIDiffConf > 1) {
         std::cerr << "ERROR, skch::parseandSave, hypergeometric confidence must be between 0 and 1" << std::endl;
         exit(1);
