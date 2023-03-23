@@ -23,6 +23,7 @@
 //External includes
 #include "common/murmur3.h"
 #include "common/prettyprint.hpp"
+#include "common/ankerl/unordered_dense.hpp"
 
 //#include "assert.hpp"
 
@@ -181,8 +182,9 @@ namespace skch {
             CommonFunc::reverseComplement(seq, seqRev.get(), len);
 
           // TODO cleanup
-          std::unordered_map<hash_t, MinmerInfo> sketched_vals;
+          ankerl::unordered_dense::map<hash_t, MinmerInfo> sketched_vals;
           std::vector<hash_t> sketched_heap;
+          sketched_heap.reserve(sketchSize+1);
 
           for(offset_t i = 0; i < len - kmerSize + 1; i++)
           {
@@ -204,41 +206,41 @@ namespace skch {
               //Check the strand of this minimizer hash value
               auto currentStrand = hashFwd < hashBwd ? strnd::FWD : strnd::REV;
 
-              ////std::cout << seqCounter << "\t" << std::string(seq + i, kmerSize) << "-->" <<  currentKmer << std::endl;
-              if (sketched_vals.empty() || sketched_vals.find(currentKmer) == sketched_vals.end()) 
+              if (sketched_heap.size() < sketchSize || currentKmer <= sketched_heap.front())
               {
-
-                // Add current hash to heap
-                if (sketched_vals.size() < sketchSize || currentKmer < sketched_heap[0])  
+                if (sketched_heap.empty() || sketched_vals.find(currentKmer) == sketched_vals.end()) 
                 {
-                    sketched_vals[currentKmer] = MinmerInfo{currentKmer, i, i, seqCounter, currentStrand};
-                    sketched_heap.push_back(currentKmer);
-                    std::push_heap(sketched_heap.begin(), sketched_heap.end());
-                }
 
-                // Remove one if too large
-                if (sketched_vals.size() > sketchSize) 
+                  // Add current hash to heap
+                  if (sketched_vals.size() < sketchSize || currentKmer < sketched_heap.front())  
+                  {
+                      sketched_vals[currentKmer] = MinmerInfo{currentKmer, i, i, seqCounter, currentStrand};
+                      sketched_heap.push_back(currentKmer);
+                      std::push_heap(sketched_heap.begin(), sketched_heap.end());
+                  }
+
+                  // Remove one if too large
+                  if (sketched_vals.size() > sketchSize) 
+                  {
+                      sketched_vals.erase(sketched_heap[0]);
+                      std::pop_heap(sketched_heap.begin(), sketched_heap.end());
+                      sketched_heap.pop_back();
+                  }
+                } 
+                else 
                 {
-                    sketched_vals.erase(sketched_heap[0]);
-                    std::pop_heap(sketched_heap.begin(), sketched_heap.end());
-                    sketched_heap.pop_back();
+                  // TODO these sketched values might never be useful, might save memory by deleting
+                  // extend the length of the window
+                  sketched_vals[currentKmer].wpos_end = i;
+                  sketched_vals[currentKmer].strand += currentStrand == strnd::FWD ? 1 : -1;
                 }
-              } 
-              else 
-              {
-                // TODO these sketched values might never be useful, might save memory by deleting
-                // extend the length of the window
-                sketched_vals[currentKmer].wpos_end = i;
-                sketched_vals[currentKmer].strand += currentStrand == strnd::FWD ? 1 : -1;
               }
             }
           }
-          //DEBUG_ASSERT(sketched_vals.size() <= sketchSize);
-          minmerIndex.reserve(sketched_vals.size());
           std::for_each(sketched_vals.begin(), sketched_vals.end(),
               [&minmerIndex](auto& pair) {
               pair.second.strand = pair.second.strand > 0 ? strnd::FWD : (pair.second.strand == 0 ? strnd::AMBIG : strnd::REV);
-              minmerIndex.push_back(pair.second);
+              minmerIndex.emplace_back(std::move(pair.second));
           });
 
           return;

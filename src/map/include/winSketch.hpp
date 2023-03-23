@@ -33,7 +33,8 @@ namespace fs = std::filesystem;
 //#include "common/parallel-hashmap/parallel_hashmap/phmap.h"
 //#include <abseil-cpp/absl/container/flat_hash_map.h>
 //#include <common/sparse-map/include/tsl/sparse_map.h>
-#include <common/robin-hood-hashing/robin_hood.h>
+//#include <common/robin-hood-hashing/robin_hood.h>
+#include "common/ankerl/unordered_dense.hpp"
 
 #include "common/seqiter.hpp"
 
@@ -64,7 +65,7 @@ namespace skch
       int freqThreshold = std::numeric_limits<int>::max();
 
       //Set of frequent seeds to be ignored
-      robin_hood::unordered_set<hash_t> frequentSeeds;
+      ankerl::unordered_dense::set<hash_t> frequentSeeds;
 
       //Make the default constructor private, non-accessible
       Sketch();
@@ -96,7 +97,7 @@ namespace skch
       //using MI_Map_t = phmap::flat_hash_map< MinmerMapKeyType, MinmerMapValueType >;
       //using MI_Map_t = absl::flat_hash_map< MinmerMapKeyType, MinmerMapValueType >;
       //using MI_Map_t = tsl::sparse_map< MinmerMapKeyType, MinmerMapValueType >;
-      using MI_Map_t = robin_hood::unordered_flat_map< MinmerMapKeyType, MinmerMapValueType >;
+      using MI_Map_t = ankerl::unordered_dense::map< MinmerMapKeyType, MinmerMapValueType >;
       MI_Map_t minmerPosLookupIndex;
       MI_Type minmerIndex;
 
@@ -331,6 +332,7 @@ namespace skch
         inStream.open(posListFilename, std::ios::binary);
         typename MI_Map_t::size_type numKeys = 0;
         inStream.read((char*)&numKeys, sizeof(numKeys));
+        minmerPosLookupIndex.reserve(numKeys);
 
         for (auto idx = 0; idx < numKeys; idx++) 
         {

@@ -765,6 +765,56 @@ namespace skch
           // Used to keep track of how many minmer windows for a particular hash are currently "open"
           // Only necessary when windowLen != 0.
           std::unordered_map<hash_t, int> hash_to_freq;
+
+          if (param.stage1_topANI_filter) {
+            while (leadingIt != intervalPoints.end())
+            {
+              // Catch the trailing iterator up to the leading iterator - windowLen
+              while (
+                  trailingIt != intervalPoints.end() 
+                  && ((trailingIt->seqId == leadingIt->seqId && trailingIt->pos <= leadingIt->pos - windowLen)
+                    || trailingIt->seqId < leadingIt->seqId))
+              {
+                if (trailingIt->side == side::CLOSE) {
+                  if (windowLen != 0)
+                    hash_to_freq[trailingIt->hash]--;
+                  if (windowLen == 0 || hash_to_freq[trailingIt->hash] == 0) {
+                    overlapCount--;
+                  }
+                }
+                trailingIt++;
+              }
+              auto currentPos = leadingIt->pos;
+              while (leadingIt != intervalPoints.end() && leadingIt->pos == currentPos) {
+                if (leadingIt->side == side::OPEN) {
+                  if (windowLen == 0 || hash_to_freq[leadingIt->hash] == 0) {
+                    overlapCount++;
+                  }
+                  if (windowLen != 0)
+                    hash_to_freq[leadingIt->hash]++;
+                }
+                leadingIt++;
+              }
+
+              //DEBUG_ASSERT(overlapCount >= 0, windowLen, trailingIt->seqId, trailingIt->pos, leadingIt->seqId, leadingIt->pos);
+              //DEBUG_ASSERT(windowLen != 0 || overlapCount <= Q.sketchSize, windowLen, trailingIt->seqId, trailingIt->pos, leadingIt->seqId, leadingIt->pos);
+
+              //Is this sliding window the best we have so far?
+              bestIntersectionSize = std::max(bestIntersectionSize, overlapCount);
+            }
+
+            // Only go back through to find local opts if we know that there are some that are 
+            // large enough
+            if (bestIntersectionSize < minimumHits) 
+            {
+              return;
+            } else 
+            {
+              minimumHits = std::max(
+                  sketchCutoffs[std::min(bestIntersectionSize, Q.sketchSize)],
+                  minimumHits);
+            }
+          } 
           
           // Clear freq dict, as there will be left open CLOSE points at the end of the last seq
           // that we never got to
@@ -936,7 +986,11 @@ namespace skch
         {
           ///2. Walk the read over the candidate regions and compute the jaccard similarity with minimum s sketches
           std::vector<L2_mapLocus_t> l2_vec;
-          l2Mappings.reserve(l1Mappings.size());
+          if (!param.stage1_topANI_filter)
+          {
+            // Only reserve if we know that we'll be storing each of the l1 mappings
+            l2Mappings.reserve(l1Mappings.size());
+          }
 
           double bestJaccardNumerator = 0;
           auto loc_iterator = l1Mappings.begin();
@@ -1058,6 +1112,7 @@ namespace skch
 
           // Keeps track of the lowest end position
           std::vector<skch::MinmerInfo> slidingWindow;
+          slidingWindow.reserve(Q.sketchSize);
 
           // Used to make a min-heap
           constexpr auto heap_cmp = [](const skch::MinmerInfo& l, const skch::MinmerInfo& r) {return l.wpos_end > r.wpos_end;};
@@ -1146,7 +1201,7 @@ namespace skch
               l2_out.sharedSketchSize = slideMap.sharedSketchElements;
 
               //Save the position
-              l2_out.optimalStart = windowIt->wpos - windowLen;
+              l2_out.optimalStart = windowIt->wpos;
               l2_out.optimalEnd = std::next(
                   windowIt, 
                   windowIt != minmerIndex.end() && std::next(windowIt)->seqId == windowIt->seqId
@@ -1158,7 +1213,7 @@ namespace skch
                 l2_out.sharedSketchSize = slideMap.sharedSketchElements;
 
                 //Save the position
-                l2_out.optimalStart = windowIt->wpos - windowLen;
+                l2_out.optimalStart = windowIt->wpos;
               }
 
               in_candidate = true;
@@ -1166,14 +1221,14 @@ namespace skch
               l2_out.optimalEnd = std::next(
                   windowIt, 
                   windowIt != minmerIndex.end() && std::next(windowIt)->seqId == windowIt->seqId
-                )->wpos - windowLen;
+                )->wpos;
             } else {
               if (in_candidate) {
                 // Save and reset
                 l2_out.optimalEnd = std::next(
                     windowIt, 
                     windowIt != minmerIndex.end() && std::next(windowIt)->seqId == windowIt->seqId
-                  )->wpos - windowLen;
+                  )->wpos;
                 l2_out.meanOptimalPos =  (l2_out.optimalStart + l2_out.optimalEnd) / 2;
                 l2_out.seqId = windowIt->seqId;
                 l2_out.strand = prev_strand_votes >= 0 ? strnd::FWD : strnd::REV;
@@ -1200,7 +1255,16 @@ namespace skch
             l2_out.meanOptimalPos =  (l2_out.optimalStart + l2_out.optimalEnd) / 2;
             l2_out.seqId = std::prev(windowIt)->seqId;
             l2_out.strand = slideMap.strand_votes >= 0 ? strnd::FWD : strnd::REV;
-            l2_vec_out.push_back(l2_out);
+            if (l2_vec_out.empty() 
+                || l2_vec_out.back().optimalEnd + param.segLength < l2_out.optimalStart)
+            {
+              l2_vec_out.push_back(l2_out);
+            }
+            else 
+            {
+              l2_vec_out.back().optimalEnd = l2_out.optimalEnd;
+              l2_vec_out.back().meanOptimalPos = (l2_vec_out.back().optimalStart + l2_vec_out.back().optimalEnd) / 2;
+            }
           }
         }
 
