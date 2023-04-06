@@ -537,18 +537,11 @@ namespace skch
                           param.numMappingsForShortSequence
                           : param.numMappingsForSegment) - 1;
 
-        // TODO why are we filtering these before merging?
-        if (param.filterMode == filter::MAP || param.filterMode == filter::ONETOONE) {
-            skch::Filter::query::filterMappings(output->readMappings, n_mappings);
-        }
-
         if (split_mapping) {
           if (param.mergeMappings) {
             // hardcore merge using the chain gap
-            mergeMappingsInRange(output->readMappings, param.chain_gap);
-            if (param.filterMode == filter::MAP || param.filterMode == filter::ONETOONE) {
-                skch::Filter::query::filterMappings(output->readMappings, n_mappings);
-            }
+            //mergeMappingsInRange(output->readMappings, param.chain_gap);
+            mergeMappings(output->readMappings);
             if (input->len >= param.block_length) {
               // remove short chains that didn't exceed block length
               filterWeakMappings(output->readMappings, std::floor(param.block_length / param.segLength));
@@ -556,6 +549,10 @@ namespace skch
           }
         }
 
+        // TODO why are we filtering these before merging?
+        if (param.filterMode == filter::MAP || param.filterMode == filter::ONETOONE) {
+            skch::Filter::query::filterMappings(output->readMappings, n_mappings);
+        }
 
         // remove self-mode don't-maps
         this->filterSelfingLongToShorts(output->readMappings);
@@ -1319,19 +1316,23 @@ namespace skch
               auto thisMappingFragno = std::ceil(it2->queryStartPos * 1.0/ param.segLength);
 
               //If this mapping is too far from current mapping being evaluated, stop finding a merge
-              if(it2->refSeqId != it->refSeqId || it2->refStartPos - it->refEndPos > 2 * param.segLength)
+              if(
+                  it2->refSeqId != it->refSeqId 
+                  || std::abs(it2->refStartPos - it->refEndPos) > param.chain_gap
+                  )
                 break;
 
               //If the next mapping is within range, check if it is consecutive query fragment and strand matches
               if( it2->strand == it->strand
-                  && thisMappingFragno == currMappingFragno + (it->strand == strnd::FWD ? 1 : -1) )
+                  //&& std::abs(it2->queryStartPos - it->queryEndPos) <= param.chain_gap
+                  && thisMappingFragno == currMappingFragno + (it->strand == strnd::FWD ? 1 : -1)
+              )
               {
                 it2->splitMappingId = it->splitMappingId;   //merge
                 continue;
               }
             }
           }
-
           //Keep single mapping for each chain and discard others
 
           //Sort the mappings by post-merge split mapping id
@@ -1492,9 +1493,10 @@ namespace skch
                   ) /// it->n_merged; // this would scale directly by the number of mappings in the chain
                   // this scales slightly by the amount of missing segments
                   / ( (double)it->n_merged
-                      + std::pow(
-                          std::log((double)it->blockLength / param.segLength),
-                          0.01));
+                      //+ std::pow(
+                          //std::log((double)it->blockLength / param.segLength),
+                          //0.01)
+                      );
 
 
               //Discard other mappings of this chain
