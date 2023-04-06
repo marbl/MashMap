@@ -54,21 +54,20 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(assert)
 
-if (${CMAKE_BUILD_TYPE} MATCHES Debug)
-    add_compile_options(-fsanitize=address)
-    add_link_options(-fsanitize=address)
-endif ()
-
 add_executable(mashmap
   src/common/utils.cpp
   src/map/mash_map.cpp) #$(CXX) $(CXXFLAGS) $(CPPFLAGS) -Lsrc/common/wflign/build/lib -Isrc/common/wflign/deps -Isrc/common $(SOURCE_1) -o wfmash @mathlib@ -lstdc++ -lz -lm -lpthread -lwflambda -lwflign
 
-if (${CMAKE_BUILD_TYPE} MATCHES Debug)
-    add_compile_options(-fsanitize=address)
-    add_link_options(-fsanitize=address)
-endif ()
+add_executable(mashmap-align
+  src/common/utils.cpp
+  src/align/align.cpp) #$(CXX) $(CXXFLAGS) $(CPPFLAGS) -Lsrc/common/wflign/build/lib -Isrc/common/wflign/deps -Isrc/common $(SOURCE_1) -o wfmash @mathlib@ -lstdc++ -lz -lm -lpthread -lwflambda -lwflign
 
 target_include_directories(mashmap PRIVATE
+  src
+  src/common
+  )
+
+target_include_directories(mashmap-align PRIVATE
   src
   src/common
   )
@@ -88,7 +87,22 @@ target_link_libraries(mashmap
   #absl::flat_hash_map
 )
 
+target_link_libraries(mashmap-align
+  gsl
+  gslcblas
+  m
+  pthread
+  hts
+  rt
+  jemalloc
+  z
+  assert
+  gmp
+  #absl::flat_hash_map
+)
+
 install(TARGETS mashmap DESTINATION bin)
+install(TARGETS mashmap-align DESTINATION bin)
 
 # version stuff
 file(MAKE_DIRECTORY ${CMAKE_SOURCE_DIR}/include)
