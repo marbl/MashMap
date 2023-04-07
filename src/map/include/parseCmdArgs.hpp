@@ -56,7 +56,7 @@ sequences shorter than segment length will be ignored", ArgvParser::OptionRequir
     cmd.defineOption("blockLength", "keep merged mappings supported by homologies of this total length [default: segmentLength]", ArgvParser::OptionRequiresValue);
     cmd.defineOptionAlternative("blockLength", "l");
 
-    cmd.defineOption("chainGap", "chain mappings closer than this distance in query and target, retaining mappings in best chain [default: 2*segmentLength]", ArgvParser::OptionRequiresValue);
+    cmd.defineOption("chainGap", "chain mappings closer than this distance in query and target, retaining mappings in best chain [default: segmentLength]", ArgvParser::OptionRequiresValue);
     cmd.defineOptionAlternative("chainGap", "c");
 
     cmd.defineOption("numMappingsForSegment", "number of mappings to retain for each segment [default: 1]", ArgvParser::OptionRequiresValue);
@@ -64,8 +64,8 @@ sequences shorter than segment length will be ignored", ArgvParser::OptionRequir
 
     cmd.defineOption("numMappingsForShortSeq", "number of mappings to retain for each sequence shorter than segment length [default: 1]", ArgvParser::OptionRequiresValue);
     
-    cmd.defineOption("indexSave", "Filename of index file to save. Filenames w/ .tsv extension will be saved as TSV files and otherwise binary files", ArgvParser::OptionRequiresValue);
-    cmd.defineOption("indexLoad", "Filename of index file to load", ArgvParser::OptionRequiresValue);
+    cmd.defineOption("saveIndex", "Prefix of index files to save. PREFIX.map and PREFIX.index files will be created", ArgvParser::OptionRequiresValue);
+    cmd.defineOption("loadIndex", "Prefix of index files to load, where PREFIX.map and PREFIX.index are the files to be loaded", ArgvParser::OptionRequiresValue);
 
 
     cmd.defineOption("noSplit", "disable splitting of input sequences during mapping [enabled by default]");
@@ -305,14 +305,14 @@ sequences shorter than segment length will be ignored", ArgvParser::OptionRequir
 
     str.clear();
 
-    if (cmd.foundOption("indexSave")) {
-        str << cmd.optionValue("indexSave");
+    if (cmd.foundOption("saveIndex")) {
+        str << cmd.optionValue("saveIndex");
         str >> parameters.saveIndexFilename;
     } else {
         parameters.saveIndexFilename = "";
     }
-    if (cmd.foundOption("indexLoad")) {
-        str << cmd.optionValue("indexLoad");
+    if (cmd.foundOption("loadIndex")) {
+        str << cmd.optionValue("loadIndex");
         str >> parameters.loadIndexFilename;
     } else {
         parameters.loadIndexFilename = "";
@@ -413,7 +413,7 @@ sequences shorter than segment length will be ignored", ArgvParser::OptionRequir
       }
       parameters.chain_gap = l;
     } else {
-      parameters.chain_gap = 2*parameters.segLength;
+      parameters.chain_gap = parameters.segLength;
     }
     str.clear();
 

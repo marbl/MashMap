@@ -263,8 +263,10 @@ namespace skch
        */
       void saveIndexBinary() 
       {
+        fs::path indexFilename = fs::path(param.saveIndexFilename);
+        indexFilename += ".index";
         std::ofstream outStream;
-        outStream.open(param.saveIndexFilename, std::ios::binary);
+        outStream.open(indexFilename, std::ios::binary);
         typename MI_Type::size_type size = minmerIndex.size();
         outStream.write((char*)&size, sizeof(size));
         outStream.write((char*)&minmerIndex[0], minmerIndex.size() * sizeof(MinmerInfo));
@@ -275,7 +277,8 @@ namespace skch
        */
       void savePosListBinary() 
       {
-        fs::path posListFilename = fs::path(param.saveIndexFilename).replace_extension(".map");
+        fs::path posListFilename = fs::path(param.saveIndexFilename);
+        posListFilename += ".map";
         std::ofstream outStream;
         outStream.open(posListFilename, std::ios::binary);
         typename MI_Map_t::size_type size = minmerPosLookupIndex.size();
@@ -314,8 +317,10 @@ namespace skch
        */
       void loadIndexBinary() 
       {
+        fs::path indexFilename = fs::path(param.loadIndexFilename);
+        indexFilename += ".index";
         std::ifstream inStream;
-        inStream.open(param.loadIndexFilename, std::ios::binary);
+        inStream.open(indexFilename, std::ios::binary);
         typename MI_Type::size_type size = 0;
         inStream.read((char*)&size, sizeof(size));
         minmerIndex.resize(size);
@@ -327,7 +332,8 @@ namespace skch
        */
       void loadPosListBinary() 
       {
-        fs::path posListFilename = fs::path(param.loadIndexFilename).replace_extension(".map");
+        fs::path posListFilename = fs::path(param.loadIndexFilename);
+        posListFilename += ".map";
         std::ifstream inStream;
         inStream.open(posListFilename, std::ios::binary);
         typename MI_Map_t::size_type numKeys = 0;
