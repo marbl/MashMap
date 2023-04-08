@@ -79,7 +79,7 @@ sequences shorter than segment length will be ignored", ArgvParser::OptionRequir
     cmd.defineOption("threads", "count of threads for parallel execution [default : 1]", ArgvParser::OptionRequiresValue);
     cmd.defineOptionAlternative("threads","t");
 
-    cmd.defineOption("output", "output file name [default : /dev/stdout ]", ArgvParser::OptionRequiresValue);
+    cmd.defineOption("output", "output file name [default : mashmap.out ]", ArgvParser::OptionRequiresValue);
     cmd.defineOptionAlternative("output","o");
 
     cmd.defineOption("kmer", "kmer size [default : 19]", ArgvParser::OptionRequiresValue);
@@ -90,7 +90,7 @@ sequences shorter than segment length will be ignored", ArgvParser::OptionRequir
     cmd.defineOption("sketchSize", "Number of sketch elements", ArgvParser::OptionRequiresValue);
     cmd.defineOptionAlternative("sketchSize","J");
 
-    cmd.defineOption("shortenCandidateRegions", "Only compute rolling minhash score for small regions around positions where the intersection of reference and query minmers is locally maximal. Results in slighty faster runtimes at the cost of mapping placement and ANI prediction.");
+    //cmd.defineOption("shortenCandidateRegions", "Only compute rolling minhash score for small regions around positions where the intersection of reference and query minmers is locally maximal. Results in slighty faster runtimes at the cost of mapping placement and ANI prediction.");
 
     cmd.defineOption("noHgFilter", "Don't use the hypergeometric filtering and instead use the MashMap2 first pass filtering.");
     cmd.defineOption("hgFilterAniDiff", "Filter out mappings unlikely to be this ANI less than the best mapping [default: 0.0]", ArgvParser::OptionRequiresValue);
@@ -557,7 +557,7 @@ sequences shorter than segment length will be ignored", ArgvParser::OptionRequir
       str.clear();
     }
     else
-      parameters.outFileName = "/dev/stdout";
+      parameters.outFileName = "mashmap.out";
 
 
     printCmdOptions(parameters);
