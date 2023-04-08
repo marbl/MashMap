@@ -53,6 +53,9 @@ jobs:
 
 
     - name: Build
+      env:
+          CC: ${{ matrix.compiler.CC }}
+          CXX: ${{ matrix.compiler.CXX }}
       # Build your program with the given configuration
       run: cmake -H. -Bbuild -DCMAKE_BUILD_TYPE=Release && cmake --build build -- 
 
