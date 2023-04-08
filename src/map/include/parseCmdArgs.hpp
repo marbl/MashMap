@@ -542,18 +542,12 @@ sequences shorter than segment length will be ignored", ArgvParser::OptionRequir
       str >> parameters.sketchSize;
       str.clear();
     } else {
-      if (parameters.percentageIdentity >= 0.95) {
-        parameters.sketchSize = parameters.segLength / 25;
-      }
-      else if (parameters.percentageIdentity >= 0.85) {
-        parameters.sketchSize = parameters.segLength / 16;
-      }
-      else if (parameters.percentageIdentity >= 0.75) {
-        parameters.sketchSize = parameters.segLength / 13;
-      } 
-      else {
-        parameters.sketchSize = parameters.segLength / 10;
-      }
+      //Compute optimal window size
+      parameters.sketchSize = skch::Stat::recommendedSketchSize(
+            skch::fixed::pval_cutoff, skch::fixed::confidence_interval,
+            parameters.kmerSize, parameters.alphabetSize,
+            parameters.percentageIdentity,
+            parameters.segLength, parameters.referenceSize);
     }
 
     if(cmd.foundOption("output"))

@@ -226,7 +226,7 @@ namespace skch
      * @param[in] lengthReference   reference length
      * @return                      optimal window size for sketching
      */
-    inline int64_t recommendedWindowSize(double pValue_cutoff, float confidence_interval,
+    inline int64_t recommendedSketchSize(double pValue_cutoff, float confidence_interval,
         int k, int alphabetSize,
         float identity,
         int64_t segmentLength, uint64_t lengthReference)
@@ -245,10 +245,7 @@ namespace skch
         }
       }
 
-      int64_t w =  (2.0 * lengthQuery)/optimalSketchSize;
-
-      // 1 <= w <= lengthQuery
-      return std::min(std::max(w,(int64_t)1), lengthQuery);
+      return optimalSketchSize;
     }
   }
 }
