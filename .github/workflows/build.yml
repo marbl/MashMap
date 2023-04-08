@@ -22,7 +22,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-18.04, ubuntu-20.04]    
+        os: [ubuntu-20.04]    
         compiler:
           - { compiler: GNU, CC: gcc-11, CXX: g++-11 }
 
