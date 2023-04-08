@@ -88,7 +88,7 @@ namespace align
           {
              std::string seqId = seq->name.s;
 
-             skch::CommonFunc::makeUpperCase(seq->seq.s, len);
+             skch::CommonFunc::makeUpperCaseAndValidDNA(seq->seq.s, len);
              std::string sequence = seq->seq.s;
 
              //seqId shouldn't already exist in our table
@@ -133,7 +133,7 @@ namespace align
           {
              std::string qSeqId = seq->name.s;
 
-             skch::CommonFunc::makeUpperCase(seq->seq.s, len);
+             skch::CommonFunc::makeUpperCaseAndValidDNA(seq->seq.s, len);
              std::string qSequence = seq->seq.s;
 
              //Check if all mapping records are processed already

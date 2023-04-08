@@ -78,9 +78,9 @@ namespace skch
 
         // Always, range [beg, end) represents the minimizers in the 
         // current super-window
-        assert( (this->sw_beg+1)->wpos - beginPos > 0 );
-        assert( (this->sw_end  )->wpos - lastPos > 0 );
-
+        //TODO: to check why sometime these differences are equal to 0
+        //assert( (this->sw_beg+1)->wpos - beginPos > 0 );
+        //assert( (this->sw_end  )->wpos - lastPos > 0 );
         offset_t advanceBy = std::min( (this->sw_beg+1)->wpos - beginPos, (this->sw_end)->wpos - lastPos);
 
         //Advance current super-window

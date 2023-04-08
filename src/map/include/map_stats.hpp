@@ -35,6 +35,7 @@ namespace skch
    */
   namespace Stat
   {
+
     /**
      * @brief         jaccard estimate to mash distance
      * @param[in] j   jaccard estimate
@@ -49,7 +50,7 @@ namespace skch
       if(j == 1)
         return 0.0; //jaccard estimate 1 -> 0.0 mash distance
 
-      float mash_dist = (-1.0 / k) * log(2.0 * j/(1+j) );
+      float mash_dist = 1 - std::pow(2*j / (1+j), 1.0/k);
       return mash_dist;
     }
 
@@ -61,7 +62,8 @@ namespace skch
      */
     inline float md2j(float d, int k)
     {
-      float jaccard = 1.0 / (2.0 * exp( k*d ) - 1.0);
+      float sim = 1 - d;
+      float jaccard = std::pow(sim, k) / (2 - std::pow(sim, k));
       return jaccard;
     }
 
@@ -114,13 +116,13 @@ namespace skch
      * @brief                 Estimate minimum number of shared sketches to achieve the desired identity
      * @param[in] s           sketch size
      * @param[in] k           kmer size
-     * @param[in] identity    percentage identity [0-100]
+     * @param[in] identity    percentage identity [0-1]
      * @return                minimum count of hits
      */
     inline int estimateMinimumHits(int s, int k, float perc_identity)
     {
       //Compute the estimate
-      float mash_dist = 1.0 - perc_identity/100.0;
+      float mash_dist = 1.0 - perc_identity;
       float jaccard = md2j(mash_dist, k);
 
       //function to convert jaccard to min hits
@@ -136,10 +138,10 @@ namespace skch
      *                        Upper bound is computed using the 90% confidence interval
      * @param[in] s           sketch size
      * @param[in] k           kmer size
-     * @param[in] identity    percentage identity [0-100]
+     * @param[in] identity    percentage identity [0-1]
      * @return                count of min. shared minimizers
      */
-    inline int estimateMinimumHitsRelaxed(int s, int k, float perc_identity)
+    inline int estimateMinimumHitsRelaxed(int s, int k, float perc_identity, float confidence_interval)
     {
       // The desired value has be between [0, min  s.t. identity >= perc_identity]
       auto searchRange = std::pair<int, int>( estimateMinimumHits(s, k, perc_identity) , 0);
@@ -151,10 +153,10 @@ namespace skch
         float jaccard = 1.0 * i/s;
         float d = j2md(jaccard, k);
 
-        float d_lower = md_lower_bound(d, s, k, skch::fixed::confidence_interval);
+        float d_lower = md_lower_bound(d, s, k, confidence_interval);
 
         //Upper bound identity
-        float id_upper = 100.0 * (1.0 - d_lower);
+        float id_upper = 1.0 - d_lower;
 
         //Check if it satisfies the criteria
         if(id_upper >= perc_identity)
@@ -177,8 +179,8 @@ namespace skch
      * @return                    p-value
      */
     inline double estimate_pvalue (int s, int k, int alphabetSize, 
-        float identity, 
-        int lengthQuery, uint64_t lengthReference)
+        float identity,
+        int64_t lengthQuery, uint64_t lengthReference, float confidence_interval)
     {
       //total space size of k-mers
       double kmerSpace = pow(alphabetSize, k);
@@ -190,7 +192,7 @@ namespace skch
       //Jaccard similarity of two random given sequences
       double r = pX * pY / (pX + pY - pX * pY);
 
-      int x = estimateMinimumHitsRelaxed(s, k, identity);
+      int x = estimateMinimumHitsRelaxed(s, k, identity, confidence_interval);
 
       //P (x or more minimizers match)
       double cdf_complement;
@@ -216,6 +218,7 @@ namespace skch
      * @brief                       calculate minimum window size for sketching that satisfies
      *                              the given p-value threshold
      * @param[in] pValue_cutoff     cut off p-value threshold
+     * @param[in] confidence_interval confidence interval to relax jaccard cutoff for mapping
      * @param[in] k                 kmer size
      * @param[in] alphabetSize      alphabet size
      * @param[in] identity          mapping identity cut-off
@@ -223,38 +226,26 @@ namespace skch
      * @param[in] lengthReference   reference length
      * @return                      optimal window size for sketching
      */
-    inline int recommendedWindowSize(double pValue_cutoff,
+    inline int64_t recommendedSketchSize(double pValue_cutoff, float confidence_interval,
         int k, int alphabetSize,
         float identity,
-        int segmentLength, uint64_t lengthReference)
+        int64_t segmentLength, uint64_t lengthReference)
     {
-      int lengthQuery = segmentLength;
-
-      //Push all the sketch values that we should try out in a vector
-      //{1, 2, 5, 10, 20, 30...}
-      std::vector<int> potentialSketchValues{1,2,5};
-      for(int i = 10; i < lengthQuery; i+= 10)
-        potentialSketchValues.push_back(i);
+        int64_t lengthQuery = segmentLength;
 
       int optimalSketchSize;
-
-      for(auto &e : potentialSketchValues)
-      {
+      for (optimalSketchSize = 10; optimalSketchSize < lengthQuery; optimalSketchSize += 50) {
         //Compute pvalue
-        double pVal = estimate_pvalue(e, k, alphabetSize, identity, lengthQuery, lengthReference);
+        double pVal = estimate_pvalue(optimalSketchSize, k, alphabetSize, identity, lengthQuery, lengthReference, confidence_interval);
 
         //Check if pvalue is <= cutoff
         if(pVal <= pValue_cutoff)
         {
-          optimalSketchSize = e;
           break;
         }
       }
-      
-      int w =  2.0 * lengthQuery/optimalSketchSize;
 
-      // 1 <= w <= lengthQuery
-      return std::min( std::max(w,1), lengthQuery);
+      return optimalSketchSize;
     }
   }
 }

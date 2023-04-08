@@ -1,17 +1,17 @@
 /**
  * @file    filter.hpp
- * @brief   implments the routines to filter mappings
+ * @brief   implements the routines to filter mappings
  * @author  Chirag Jain <cjain7@gatech.edu>
  */
 
-#ifndef FILTER_MAP_HPP 
+#ifndef FILTER_MAP_HPP
 #define FILTER_MAP_HPP
 
 #include <vector>
 #include <algorithm>
 #include <set>
 #include <fstream>
-#include <zlib.h>  
+#include <zlib.h>
 
 //Own includes
 #include "map/include/base_types.hpp"
@@ -40,6 +40,8 @@ namespace skch
 
         Helper(MappingResultsVector_t &v) : vec(v) {}
 
+        double get_score(const int& x) { return vec[x].qlen() * vec[x].nucIdentity; }
+
         //Greater than comparison by score and begin position
         //used to define order in BST
         bool operator ()(const int &x, const int &y) const {
@@ -50,7 +52,7 @@ namespace skch
           auto x_score = vec[x].qlen() * vec[x].nucIdentity;
           auto y_score = vec[y].qlen() * vec[y].nucIdentity;
 
-          return std::tie(x_score, vec[x].queryStartPos) > std::tie(y_score, vec[y].queryStartPos);
+          return std::tie(x_score, vec[x].queryStartPos, vec[x].refSeqId) > std::tie(y_score, vec[y].queryStartPos, vec[y].refSeqId);
         }
 
         //Greater than comparison by score
@@ -71,35 +73,40 @@ namespace skch
          * @param[in/out]   L             container with mappings
          */
         template <typename Type>
-          inline void markGood(Type &L)
+        inline void markGood(Type &L, int secondaryToKeep)
           {
             //first segment in the set order
             auto beg = L.begin();
 
+            // count how many secondary alignments we keep
+            int kept = 0;
+
             for(auto it = L.begin(); it != L.end(); it++)
             {
-              if(this->greater_score(*beg, *it) || vec[*it].discard == 0) 
-                break;
+                if ((this->greater_score(*beg, *it) || vec[*it].discard == 0) && kept > secondaryToKeep) {
+                    break;
+                }
 
-              vec[*it].discard = 0;
+                vec[*it].discard = 0;
+                ++kept;
             }
           }
       };
 
      /**
-       * @brief                       filter mappings (best for query sequence) 
+       * @brief                       filter mappings (best for query sequence)
        * @details                     evaluate best cover mapping for each base pair
        * @param[in/out] readMappings  Mappings computed by Mashmap
        */
       template <typename VecIn>
-        void liFilterAlgorithm(VecIn &readMappings)
+      void liFilterAlgorithm(VecIn &readMappings, int secondaryToKeep)
         {
           if(readMappings.size() <= 1)
             return;
 
           //Initially mark all mappings as bad
           //Maintain the order of this vector till end of this function
-          std::for_each(readMappings.begin(), readMappings.end(), [&](MappingResult &e){ e.discard = 1; });  
+          std::for_each(readMappings.begin(), readMappings.end(), [&](MappingResult &e){ e.discard = 1; });
 
           //Initialize object of Helper struct
           Helper obj (readMappings);
@@ -111,7 +118,7 @@ namespace skch
           //Event point schedule
           //vector of triplets <position, event type, segment id>
           typedef std::tuple<offset_t, int, int> eventRecord_t;
-          std::vector <eventRecord_t>  eventSchedule (2*readMappings.size());  
+          std::vector <eventRecord_t>  eventSchedule (2*readMappings.size());
 
           for(int i = 0; i < readMappings.size(); i++)
           {
@@ -133,34 +140,103 @@ namespace skch
             //update sweep line status by adding/removing segments
             std::for_each(it, it2, [&](const eventRecord_t &e)
                                     {
-                                      if (std::get<1>(e) == event::BEGIN) 
+                                      if (std::get<1>(e) == event::BEGIN)
                                         bst.insert (std::get<2>(e));
-                                      else 
+                                      else
                                         bst.erase (std::get<2>(e));
                                     });
 
             //mark mappings as good
-            obj.markGood(bst);
+            obj.markGood(bst, secondaryToKeep);
 
             it = it2;
           }
 
           //Remove bad mappings
-          readMappings.erase( 
+          readMappings.erase(
+              std::remove_if(readMappings.begin(), readMappings.end(), [&](MappingResult &e){ return e.discard == 1; }),
+              readMappings.end());
+        }
+
+     /**
+       * @brief                       filter mappings (best for query sequence)
+       * @details                     evaluate best N unmerged mappings for each position, assumes non-overlapping mappings in query
+       * @param[in/out] readMappings  Mappings computed by Mashmap
+       */
+      template <typename VecIn>
+      void indexedFilterAlgorithm(VecIn &readMappings, int secondaryToKeep)
+        {
+          if(readMappings.size() <= 1)
+            return;
+
+          //Initially mark all mappings as bad
+          //Maintain the order of this vector till end of this function
+          std::for_each(readMappings.begin(), readMappings.end(), [&](MappingResult &e){ e.discard = 1; });
+
+          //Initialize object of Helper struct
+          Helper obj (readMappings);
+
+          //Event point schedule
+          //vector of triplets <position, event type, segment id>
+          typedef std::tuple<offset_t, double, int, int> eventRecord_t;
+          std::vector <eventRecord_t>  eventSchedule (2*readMappings.size());
+
+          for(int i = 0; i < readMappings.size(); i++) {
+              eventSchedule.emplace_back (readMappings[i].queryStartPos, obj.get_score(i), event::BEGIN, i);
+              eventSchedule.emplace_back (readMappings[i].queryEndPos + 1, 0, event::END, i); // end should not be preferred
+          }
+
+          std::sort(eventSchedule.begin(), eventSchedule.end());
+
+          //Execute the plane sweep algorithm
+          for(auto it = eventSchedule.begin(); it!= eventSchedule.end();)
+          {
+            //Find events that correspond to current position
+            auto it2 = std::find_if(it, eventSchedule.end(), [&](const eventRecord_t &e)
+                                    {
+                                      return std::get<0>(e) != std::get<0>(*it);
+                                    });
+
+            //mark best secondaryToKeep+1 mappings as good
+            int kept = 0;
+            std::for_each(it, it2, [&](const eventRecord_t &e)
+                                    {
+                                        if (std::get<2>(e) == event::BEGIN && kept <= secondaryToKeep) {
+                                            obj.vec[std::get<3>(e)].discard = 0;
+                                            ++kept;
+                                        }
+                                    });
+
+            it = it2;
+          }
+
+          //Remove bad mappings
+          readMappings.erase(
               std::remove_if(readMappings.begin(), readMappings.end(), [&](MappingResult &e){ return e.discard == 1; }),
               readMappings.end());
         }
 
       /**
-       * @brief                       filter mappings (best for query sequence) 
+       * @brief                       filter mappings (best for query sequence)
        * @param[in/out] readMappings  Mappings computed by Mashmap (post merge step)
        */
       template <typename VecIn>
-        void filterMappings(VecIn &readMappings)
-        {
-          //Apply the main filtering algorithm to ensure best mappings across complete axis
-          liFilterAlgorithm(readMappings);
-        }
+      void filterMappings(VecIn &readMappings, uint16_t secondaryToKeep)
+      {
+          //Apply the main filtering algorithm to ensure the best mappings across complete axis
+          liFilterAlgorithm(readMappings, secondaryToKeep);
+      }
+
+     /**
+       * @brief                       filter mappings (best for query sequence)
+       * @param[in/out] readMappings  Mappings computed by Mashmap (post merge step)
+       */
+      template <typename VecIn>
+      void filterUnmergedMappings(VecIn &readMappings, int secondaryToKeep)
+      {
+          //Apply a simple filtering algorithm that keeps the best secondaryToKeep+1 mappings per position
+          indexedFilterAlgorithm(readMappings, secondaryToKeep);
+      }
     } //End of query namespace
 
     namespace ref
@@ -208,14 +284,17 @@ namespace skch
          * @param[in/out]   L             container with mappings
          */
         template <typename Type>
-          inline void markGood(Type &L)
+          inline void markGood(Type &L, int secondaryToKeep)
           {
             //first segment in the set order
             auto beg = L.begin();
 
+            // count how many secondary alignments we keep
+            int kept = 0;
+
             for(auto it = L.begin(); it != L.end(); it++)
             {
-              if(this->greater_score(*beg, *it) || vec[*it].discard == 0) 
+              if((this->greater_score(*beg, *it) || vec[*it].discard == 0) && ++kept > secondaryToKeep)
                 break;
 
               vec[*it].discard = 0;
@@ -244,19 +323,19 @@ namespace skch
       };
 
       /**
-       * @brief                       filter mappings (best for reference sequence) 
+       * @brief                       filter mappings (best for reference sequence)
        * @param[in/out] readMappings  Mappings computed by Mashmap (post merge step)
        * @param[in]     refsketch     reference index class object, used to determine ref sequence lengths
        */
       template <typename VecIn>
-        void filterMappings(VecIn &readMappings, const skch::Sketch &refsketch)
+        void filterMappings(VecIn &readMappings, const skch::Sketch &refsketch, uint16_t secondaryToKeep)
         {
           if(readMappings.size() <= 1)
             return;
 
           //Initially mark all mappings as bad
           //Maintain the order of this vector till end of this function
-          std::for_each(readMappings.begin(), readMappings.end(), [&](MappingResult &e){ e.discard = 1; });  
+          std::for_each(readMappings.begin(), readMappings.end(), [&](MappingResult &e){ e.discard = 1; });
 
           //Initialize object of Helper struct
           Helper obj (readMappings);
@@ -267,7 +346,7 @@ namespace skch
 
           //Event point schedule
           //vector of triplets <position, event type, segment id>
-          std::vector <eventRecord_t>  eventSchedule (2*readMappings.size());  
+          std::vector <eventRecord_t>  eventSchedule (2*readMappings.size());
 
           for(int i = 0; i < readMappings.size(); i++)
           {
@@ -275,7 +354,7 @@ namespace skch
 
             eventRecord_t endEvent = std::make_tuple(readMappings[i].refSeqId, readMappings[i].refEndPos, event::END, i);
             //add one to above coordinate
-            obj.refPosDoPlusOne(endEvent, refsketch);  
+            obj.refPosDoPlusOne(endEvent, refsketch);
             eventSchedule.push_back (endEvent);
           }
 
@@ -293,23 +372,23 @@ namespace skch
             //update sweep line status by adding/removing segments
             std::for_each(it, it2, [&](const eventRecord_t &e)
                                     {
-                                      if (std::get<2>(e) == event::BEGIN) 
+                                      if (std::get<2>(e) == event::BEGIN)
                                         bst.insert (std::get<3>(e));
-                                      else 
+                                      else
                                         bst.erase (std::get<3>(e));
                                     });
 
             //mark mappings as good
-            obj.markGood(bst);
+            obj.markGood(bst, secondaryToKeep);
 
             it = it2;
           }
 
           //Remove bad mappings
-          readMappings.erase( 
+          readMappings.erase(
               std::remove_if(readMappings.begin(), readMappings.end(), [&](MappingResult &e){ return e.discard == 1; }),
               readMappings.end());
-        } 
+        }
     } //End of reference namespace
   }
 }
