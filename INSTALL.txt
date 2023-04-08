@@ -1,48 +1,23 @@
 MashMap is normally distributed as a dependency-free binary for Linux or OSX). 
 This source distribution is intended for other operating systems or for development. 
-MashMap requires c++11 to build, which is available in and GCC >= 4.8 and 
-OSX >= 10.7.
+MashMap requires c++17.
 
 Dependencies:
 -------------
-   - Autoconf ( http://www.gnu.org/software/autoconf/ )
-   - either...
-       GNU Scientific Library ( http://www.gnu.org/software/gsl/ )
-     or..
-       Boost Library ( http://www.boost.org ) (see "-with-boost" below)
+   - GNU Scientific Library ( http://www.gnu.org/software/gsl/ )
+   - CMake >=3.21
    - Zlib ( included with OS X and most Linuxes, http://www.zlib.net ) *
 
 
 Steps:
 ------
-   ./bootstrap.sh
-   ./configure [--prefix=...] [--with-gsl=...] [--with-boost=...]
-   make
-
+   cmake -h. -Bbuild -DCMAKE_BUILD_TYPE=Release 
+   cmake --build build
 
 Products:
 ---------
-   - command line tool ( <prefix>/bin/mashmap)
+   - command line tool ( build/bin/mashmap)
 
-
-
-Configure options:
-------------------
---prefix=</path/to/install>
-  Installs binaries to bin/ and libraries to lib/ within this path. The default
-  is /usr/local/, which will typically require sudo for make install. Must be
-  absolute path.
---with-gsl=</path/to/gsl/>
-  Where to find the GNU Scientific library install if not in the default
-  location (/usr/local). Must be absolute path and should not include bin/ or
-  lib/.
---enable-static-gsl
-  Statically link the GNU Scientific library instead of dynamically. Be mindful
-  of licensure if distributing.
---with-boost=</path/to/boost/>
-  Use Boost from this location, instead of GSL. Must be absolute path and should
-  not include bin/ or lib/. Will be statically linked. Be mindful of licensure
-  if distributing.
   
 * If Zlib is not installed in a standard system location (it usually is),
   CXXFLAGS and LDFLAGS will have to be modified before making.
