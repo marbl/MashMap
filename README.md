@@ -36,7 +36,7 @@ For most of the use cases, default values should be appropriate. However, differ
 
 * Filtering options (-f, --filter_mode) : Mashmap implements a [plane-sweep](https://en.wikipedia.org/wiki/Sweep_line_algorithm) based algorithm to perform the alignment filtering. Similar to [delta-filter](http://mummer.sourceforge.net/manual/#filter) in nucmer, different filtering options are provided that are suitable for long read or assembly mapping. Option `-f map` is suitable for reporting the best mappings for long reads, whereas `-f one-to-one` is suitable for reporting orthologous mappings among all computed assembly to genome mappings.   
 
-* Sketch size (--sketchSize) : This parameter sets the seed density of the winnowing scheme, gauranteeing that the minhash will be calculated from a sample of `sketchSize` k-kmers for each segment. It is set automatically based on `--pi` but can be manually set as well. 
+* Sketch size (--sketchSize) : This parameter sets the seed density of the winnowing scheme, gauranteeing that the minhash will be calculated from a sample of `sketchSize` k-mers for each segment. It is set automatically based on `--pi` but can be manually set as well. 
 
 ## Visualize
 
