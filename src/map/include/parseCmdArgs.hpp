@@ -200,7 +200,6 @@ sequences shorter than segment length will be ignored", ArgvParser::OptionRequir
     std::cerr << "[mashmap] Mappings per segment = " << parameters.numMappingsForSegment << std::endl;
     std::cerr << "[mashmap] Percentage identity threshold = " << 100 * parameters.percentageIdentity << "\%" << std::endl;
     std::cerr << "[mashmap] " << (parameters.skip_self ? "Skip" : "Do not skip") << " self mappings" << std::endl;
-    std::cerr << "[mashmap] " << (parameters.stage2_full_scan ? "Full scan" : "Short scan") << std::endl;
     if (parameters.stage1_topANI_filter) 
       std::cerr << "[mashmap] " << "Hypergeometric filter w/ delta = " << parameters.ANIDiff << " and confidence " << parameters.ANIDiffConf << std::endl;
     else
@@ -322,6 +321,8 @@ sequences shorter than segment length will be ignored", ArgvParser::OptionRequir
     parameters.alphabetSize = 4;
     //Do not expose the option to set protein alphabet in mashmap
     //parameters.alphabetSize = 20;
+    
+    parameters.stage1_topANI_filter = !cmd.foundOption("noHgFilter"); 
 
     if(cmd.foundOption("filter_mode"))
     {
@@ -332,7 +333,11 @@ sequences shorter than segment length will be ignored", ArgvParser::OptionRequir
 
       if (filter_input == "map") parameters.filterMode = filter::MAP;
       else if (filter_input == "one-to-one") parameters.filterMode = filter::ONETOONE;
-      else if (filter_input == "none") parameters.filterMode = filter::NONE;
+      else if (filter_input == "none") 
+      {
+        parameters.stage1_topANI_filter = false;
+        parameters.filterMode = filter::NONE;
+      }
       else 
       {
         std::cerr << "ERROR, skch::parseandSave, Invalid option given for filter_mode" << std::endl;
@@ -478,7 +483,6 @@ sequences shorter than segment length will be ignored", ArgvParser::OptionRequir
       parameters.percentageIdentity = 0.85;
     str.clear();
 
-    parameters.stage1_topANI_filter = !cmd.foundOption("noHgFilter"); 
 
     if (cmd.foundOption("hgFilterAniDiff")) {
       str << cmd.optionValue("hgFilterAniDiff");
