@@ -75,12 +75,9 @@ target_link_libraries(mashmap
   gslcblas
   m
   pthread
-  hts
   rt
-  jemalloc
   z
   assert
-  gmp
 )
 
 target_link_libraries(mashmap-align
@@ -88,12 +85,9 @@ target_link_libraries(mashmap-align
   gslcblas
   m
   pthread
-  hts
   rt
-  jemalloc
   z
   assert
-  gmp
 )
 
 install(TARGETS mashmap DESTINATION bin)
