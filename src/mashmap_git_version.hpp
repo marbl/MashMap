@@ -1,1 +1,0 @@
-#define MASHMAP_GIT_VERSION "v2.0-40-g2fc23b9"
