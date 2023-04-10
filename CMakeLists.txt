@@ -75,7 +75,7 @@ target_link_libraries(mashmap
   gslcblas
   m
   pthread
-  rt
+  #rt
   z
   #assert
 )
@@ -85,7 +85,7 @@ target_link_libraries(mashmap-align
   gslcblas
   m
   pthread
-  rt
+  #rt
   z
   #assert
 )
