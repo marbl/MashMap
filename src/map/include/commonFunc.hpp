@@ -15,6 +15,7 @@
 #include <limits>
 #include <numeric>
 #include <queue>
+#include <sstream>
 
 //Own includes
 #include "map/include/map_parameters.hpp"
