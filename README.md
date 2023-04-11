@@ -38,6 +38,8 @@ For most of the use cases, default values should be appropriate. However, differ
 
 * Sketch size (--sketchSize) : This parameter sets the seed density of the winnowing scheme, gauranteeing that the minhash will be calculated from a sample of `sketchSize` k-mers for each segment. It is set automatically based on `--pi` but can be manually set as well. 
 
+* Dense sketching (`--dense`) : This flag will increase the seed density substantially, resulting in a density of roughly `0.2 * (1 + (1 - pi) / .05)` where `pi` is the `perc_identity` threshold. This leads to longer runtimes and higher RAM usage, but significantly more accurate estimates of ANI. 
+
 ## Visualize
 
 We provide a perl [script](scripts) for generating dot-plots to visualize mappings. It takes Mashmap's mapping output as its input. This script requires availability of gnuplot. Below is an example demonstrating mapping of [canu NA12878 human genome assembly](https://github.com/nanopore-wgs-consortium/NA12878/blob/master/Genome.md) (y-axis) to hg38 reference (x-axis).
