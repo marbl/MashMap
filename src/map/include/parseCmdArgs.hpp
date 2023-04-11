@@ -10,6 +10,7 @@
 #include <iostream>
 #include <string>
 #include <fstream>
+#include <sstream>
 
 //Own includes
 #include "map/include/map_parameters.hpp"
@@ -53,6 +54,11 @@ $ mashmap --rl reference_files_list.txt -q seq.fq [OPTIONS]");
 sequences shorter than segment length will be ignored", ArgvParser::OptionRequiresValue);
     cmd.defineOptionAlternative("segLength","s");
 
+    cmd.defineOption("sketchSize", "Number of sketch elements", ArgvParser::OptionRequiresValue);
+    cmd.defineOptionAlternative("sketchSize","J");
+
+    cmd.defineOption("dense", "Use dense sketching to yield higher ANI estimation accuracy. [enabled by default]");
+
     cmd.defineOption("blockLength", "keep merged mappings supported by homologies of this total length [default: segmentLength]", ArgvParser::OptionRequiresValue);
     cmd.defineOptionAlternative("blockLength", "l");
 
@@ -87,8 +93,6 @@ sequences shorter than segment length will be ignored", ArgvParser::OptionRequir
 
     cmd.defineOption("kmerThreshold", "ignore the top \% most-frequent kmer window [default: 0.001]", ArgvParser::OptionRequiresValue);
 
-    cmd.defineOption("sketchSize", "Number of sketch elements", ArgvParser::OptionRequiresValue);
-    cmd.defineOptionAlternative("sketchSize","J");
 
     //cmd.defineOption("shortenCandidateRegions", "Only compute rolling minhash score for small regions around positions where the intersection of reference and query minmers is locally maximal. Results in slighty faster runtimes at the cost of mapping placement and ANI prediction.");
 
@@ -546,12 +550,21 @@ sequences shorter than segment length will be ignored", ArgvParser::OptionRequir
       str >> parameters.sketchSize;
       str.clear();
     } else {
+      if(cmd.foundOption("dense")) 
+      {
+        const double md = 1 - parameters.percentageIdentity;
+        double dens = 0.02 * (1 + (md / 0.05));
+        parameters.sketchSize = dens * (parameters.segLength - parameters.kmerSize);
+      }
+      else 
+      {
       //Compute optimal window size
       parameters.sketchSize = skch::Stat::recommendedSketchSize(
             skch::fixed::pval_cutoff, skch::fixed::confidence_interval,
             parameters.kmerSize, parameters.alphabetSize,
             parameters.percentageIdentity,
             parameters.segLength, parameters.referenceSize);
+      }
     }
 
     if(cmd.foundOption("output"))

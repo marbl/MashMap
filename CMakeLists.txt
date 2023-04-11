@@ -44,12 +44,12 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 
 add_compile_options(-Wfatal-errors)
 
-include(FetchContent)
-FetchContent_Declare(
-    assert
-    URL https://github.com/jeremy-rifkin/libassert/archive/refs/tags/v1.1.tar.gz
-)
-FetchContent_MakeAvailable(assert)
+#include(FetchContent)
+#FetchContent_Declare(
+    #assert
+    #URL https://github.com/jeremy-rifkin/libassert/archive/refs/tags/v1.1.tar.gz
+#)
+#FetchContent_MakeAvailable(assert)
 
 add_executable(mashmap
   src/common/utils.cpp
@@ -75,9 +75,9 @@ target_link_libraries(mashmap
   gslcblas
   m
   pthread
-  rt
+  #rt
   z
-  assert
+  #assert
 )
 
 target_link_libraries(mashmap-align
@@ -85,9 +85,9 @@ target_link_libraries(mashmap-align
   gslcblas
   m
   pthread
-  rt
+  #rt
   z
-  assert
+  #assert
 )
 
 install(TARGETS mashmap DESTINATION bin)

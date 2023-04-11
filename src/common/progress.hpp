@@ -6,6 +6,7 @@
 #include <thread>
 #include <chrono>
 #include <iomanip>
+#include <sstream>
 
 namespace progress_meter {
 
