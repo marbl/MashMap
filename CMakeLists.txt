@@ -21,7 +21,7 @@ message(STATUS "CMAKE_BUILD_TYPE: ${CMAKE_BUILD_TYPE}")
 option(OPTIMIZE_FOR_NATIVE "Build with -march=native" ON)
 
 if (${CMAKE_BUILD_TYPE} MATCHES Release)
-    set(EXTRA_FLAGS "-Ofast -flto -fno-fat-lto-objects")
+    set(EXTRA_FLAGS "-Ofast ")
     if (OPTIMIZE_FOR_NATIVE)
       set(EXTRA_FLAGS "${EXTRA_FLAGS} -march=native")
     endif ()
