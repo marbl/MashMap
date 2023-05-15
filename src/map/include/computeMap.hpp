@@ -1363,6 +1363,8 @@ namespace skch
               it->approxMatches = std::round(it->nucIdentity * it->blockLength / 100.0);
             });
 
+            it->n_merged = std::distance(it, it_end);
+
             //Mean identity of all mappings in the chain
             it->nucIdentity = (   std::accumulate(it, it_end, 0.0,
                                   [](double x, MappingResult &e){ return x + e.nucIdentity; })     )/ std::distance(it, it_end);
