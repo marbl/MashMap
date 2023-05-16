@@ -30,13 +30,13 @@ Follow [`INSTALL.txt`](INSTALL.txt) to compile and install MashMap. We also prov
 
 For most of the use cases, default values should be appropriate. However, different parameters and their purpose can be checked using the help page `mashmap -h`. Important ones are mentioned below:
 
-* Identity threshold (--perc_identity, --pi) : By default, it is set to 85, implying mappings with 85% or more identity should be reported. For example, it can be set to 80% to account for more noisy long-read datasets or 95% for mapping human genome assembly to human reference.
+* Identity threshold (`--perc_identity`, `--pi`) : By default, it is set to 85, implying mappings with 85% or more identity should be reported. For example, it can be set to 80% to account for more noisy long-read datasets or 95% for mapping human genome assembly to human reference.
 
-* Minimum segment length (-s, --segLength) :  Default is 5,000 bp. Sequences below this length are ignored. Mashmap provides guarantees on reporting local alignments of length twice this value.
+* Minimum segment length (`-s`, `--segLength`) :  Default is 5,000 bp. Sequences below this length are ignored. Mashmap provides guarantees on reporting local alignments of length twice this value.
 
-* Filtering options (-f, --filter_mode) : Mashmap implements a [plane-sweep](https://en.wikipedia.org/wiki/Sweep_line_algorithm) based algorithm to perform the alignment filtering. Similar to [delta-filter](http://mummer.sourceforge.net/manual/#filter) in nucmer, different filtering options are provided that are suitable for long read or assembly mapping. Option `-f map` is suitable for reporting the best mappings for long reads, whereas `-f one-to-one` is suitable for reporting orthologous mappings among all computed assembly to genome mappings.   
+* Filtering options (`-f`, `--filter_mode`) : Mashmap implements a [plane-sweep](https://en.wikipedia.org/wiki/Sweep_line_algorithm) based algorithm to perform the alignment filtering. Similar to [delta-filter](http://mummer.sourceforge.net/manual/#filter) in nucmer, different filtering options are provided that are suitable for long read or assembly mapping. Option `-f map` is suitable for reporting the best mappings for long reads, whereas `-f one-to-one` is suitable for reporting orthologous mappings among all computed assembly to genome mappings.   
 
-* Sketch size (--sketchSize) : This parameter sets the seed density of the winnowing scheme, gauranteeing that the minhash will be calculated from a sample of `sketchSize` k-mers for each segment. It is set automatically based on `--pi` but can be manually set as well. 
+* Sketch size (`-J`, `--sketchSize`) : This parameter sets the seed density of the winnowing scheme, gauranteeing that the minhash will be calculated from a sample of `sketchSize` k-mers for each segment. It is set automatically based on `--pi` but can be manually set as well. 
 
 * Dense sketching (`--dense`) : This flag will increase the seed density substantially, resulting in a density of roughly `0.02 * (1 + (1 - pi) / .05)` where `pi` is the `perc_identity` threshold. This leads to longer runtimes and higher RAM usage, but significantly more accurate estimates of ANI. 
 
