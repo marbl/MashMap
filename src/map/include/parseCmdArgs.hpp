@@ -59,7 +59,7 @@ sequences shorter than segment length will be ignored", ArgvParser::OptionRequir
 
     cmd.defineOption("dense", "Use dense sketching to yield higher ANI estimation accuracy. [disabled by default]");
 
-    cmd.defineOption("blockLength", "keep merged mappings supported by homologies of this total length [default: segmentLength]", ArgvParser::OptionRequiresValue);
+    cmd.defineOption("blockLength", "keep merged mappings supported by homologies of at least this length [default: segmentLength]", ArgvParser::OptionRequiresValue);
     cmd.defineOptionAlternative("blockLength", "l");
 
     cmd.defineOption("chainGap", "chain mappings closer than this distance in query and target, retaining mappings in best chain [default: segmentLength]", ArgvParser::OptionRequiresValue);
