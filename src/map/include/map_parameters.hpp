@@ -67,6 +67,7 @@ struct Parameters
     bool world_minimizers;
     uint64_t sparsity_hash_threshold;                 // keep mappings that hash to <= this value
 
+    bool legacy_output;
     //std::unordered_set<std::string> high_freq_kmers;  //
 };
 

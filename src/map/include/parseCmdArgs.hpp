@@ -121,6 +121,8 @@ sequences shorter than segment length will be ignored", ArgvParser::OptionRequir
 'none' disables filtering", 
                     ArgvParser::OptionRequiresValue);
     cmd.defineOptionAlternative("filter_mode", "f");
+
+    cmd.defineOption("legacy", "MashMap2 output format");
   }
 
   /**
@@ -585,6 +587,7 @@ sequences shorter than segment length will be ignored", ArgvParser::OptionRequir
     else
       parameters.outFileName = "mashmap.out";
 
+    parameters.legacy_output = cmd.foundOption("legacy");
 
     printCmdOptions(parameters);
 
