@@ -38,6 +38,9 @@ $ mashmap --rl reference_files_list.txt -q seq.fq [OPTIONS]");
 
     cmd.setHelpOption("h", "help", "Print this help page");
 
+    cmd.defineOption("version", "Print MashMap version");
+    cmd.defineOptionAlternative("version","v");
+
     cmd.defineOption("ref", "an input reference file (fasta/fastq)[.gz]", ArgvParser::OptionRequiresValue);
     cmd.defineOptionAlternative("ref","r");
 
@@ -237,6 +240,12 @@ sequences shorter than segment length will be ignored", ArgvParser::OptionRequir
     }
 
     std::stringstream str;
+
+    if(cmd.foundOption("version"))
+    {
+      std::cerr << fixed::VERSION << std::endl;
+      exit(0);
+    }
 
     //Parse reference files
     if(cmd.foundOption("ref"))
