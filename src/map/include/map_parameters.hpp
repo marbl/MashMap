@@ -67,6 +67,7 @@ struct Parameters
     bool world_minimizers;
     uint64_t sparsity_hash_threshold;                 // keep mappings that hash to <= this value
 
+    bool legacy_output;
     //std::unordered_set<std::string> high_freq_kmers;  //
 };
 
@@ -88,6 +89,7 @@ float confidence_interval = 0.95;                   // Confidence interval to re
 float percentage_identity = 0.85;                   // Percent identity in the mapping step
 float ANIDiff = 0.0;                                // Stage 1 ANI diff threshold
 float ANIDiffConf = 0.999;                          // ANI diff confidence
+std::string VERSION = "3.0.3";                      // Version of MashMap
 }
 }
 

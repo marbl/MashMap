@@ -1575,25 +1575,32 @@ namespace skch
           assert(e.refSeqId < this->refSketch.metadata.size());
 
           float fakeMapQ = e.nucIdentity == 1 ? 255 : std::round(-10.0 * std::log10(1-(e.nucIdentity)));
+          std::string sep = param.legacy_output ? " " : "\t";
 
           outstrm  << (param.filterMode == filter::ONETOONE ? qmetadata[e.querySeqId].name : queryName)
-                   << "\t" << e.queryLen
-                   << "\t" << e.queryStartPos
-                   << "\t" << e.queryEndPos
-                   << "\t" << (e.strand == strnd::FWD ? "+" : "-")
-                   << "\t" << this->refSketch.metadata[e.refSeqId].name
-                   << "\t" << this->refSketch.metadata[e.refSeqId].len
-                   << "\t" << e.refStartPos
-                   << "\t" << e.refEndPos
-                   << "\t" << e.conservedSketches
-                   << "\t" << e.blockLength
-                   << "\t" << fakeMapQ
-                   << "\t" << "id:f:" << e.nucIdentity * 100.0;
-          if (!param.mergeMappings) 
+                   << sep << e.queryLen
+                   << sep << e.queryStartPos
+                   << sep << e.queryEndPos - (param.legacy_output ? 1 : 0)
+                   << sep << (e.strand == strnd::FWD ? "+" : "-")
+                   << sep << this->refSketch.metadata[e.refSeqId].name
+                   << sep << this->refSketch.metadata[e.refSeqId].len
+                   << sep << e.refStartPos
+                   << sep << e.refEndPos - (param.legacy_output ? 1 : 0);
+
+          if (!param.legacy_output) 
           {
-            outstrm << "\t" << "jc:f:" << e.conservedSketches * 100.0 / e.sketchSize;
+            outstrm   << sep << e.conservedSketches
+                     << sep << e.blockLength
+                     << sep << fakeMapQ
+                     << sep << "id:f:" << e.nucIdentity;
+            if (!param.mergeMappings) 
+            {
+              outstrm << sep << "jc:f:" << e.conservedSketches / e.sketchSize;
+            }
+          } else
+          {
+            outstrm << sep << e.nucIdentity * 100.0;
           }
-              //<< "\t" << "nu:f:" << e.nucIdentityUpperBound;
 
 #ifdef DEBUG
           outstrm << std::endl;
