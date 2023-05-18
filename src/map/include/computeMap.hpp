@@ -1589,7 +1589,7 @@ namespace skch
 
           if (!param.legacy_output) 
           {
-            outstrm   << sep << e.conservedSketches
+            outstrm  << sep << e.conservedSketches
                      << sep << e.blockLength
                      << sep << fakeMapQ
                      << sep << "id:f:" << e.nucIdentity;
