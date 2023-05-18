@@ -237,6 +237,12 @@ sequences shorter than segment length will be ignored", ArgvParser::OptionRequir
   {
     int result = cmd.parse(argc, argv);
 
+    if(cmd.foundOption("version"))
+    {
+      std::cerr << fixed::VERSION << std::endl;
+      exit(0);
+    }
+
     //Make sure we get the right command line args
     if (result != ArgvParser::NoParserError)
     {
@@ -250,12 +256,6 @@ sequences shorter than segment length will be ignored", ArgvParser::OptionRequir
     }
 
     std::stringstream str;
-
-    if(cmd.foundOption("version"))
-    {
-      std::cerr << fixed::VERSION << std::endl;
-      exit(0);
-    }
 
     //Parse reference files
     if(cmd.foundOption("ref"))
