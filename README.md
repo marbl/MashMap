@@ -3,7 +3,7 @@ MashMap
 [![BioConda Install](https://img.shields.io/conda/dn/bioconda/mashmap.svg?style=flag&label=BioConda%20install)](https://anaconda.org/bioconda/mashmap)
 [![GitHub Downloads](https://img.shields.io/github/downloads/marbl/MashMap/total.svg?style=social&logo=github&label=Download)](https://github.com/marbl/MashMap/releases)
 
-MashMap implements a fast and approximate algorithm for computing local alignment boundaries between long DNA sequences. It can be useful for mapping genome assembly or long reads (PacBio/ONT) to reference genome(s). Given a minimum alignment length and an identity threshold for the desired local alignments, Mashmap computes alignment boundaries and identity estimates using *k*-mers. It does not compute the alignments explicitly, but rather estimates an unbiased *k*-mer based [Jaccard similarity](https://en.wikipedia.org/wiki/Jaccard_index) using a combination of minmers (a novel winnowing scheme) and [MinHash](https://en.wikipedia.org/wiki/MinHash). This is then converted to an estimate of sequence identity using the [Mash](http://mash.readthedocs.org) distance. An appropriate *k*-mer sampling rate is automatically determined using the given minimum local alignment length and identity thresholds. 
+MashMap implements a fast and approximate algorithm for computing local alignment boundaries between long DNA sequences. It can be useful for mapping genome assembly or long reads (PacBio/ONT) to reference genome(s). Given a minimum alignment length and an identity threshold for the desired local alignments, Mashmap computes alignment boundaries and identity estimates using *k*-mers. It does not compute the alignments explicitly, but rather estimates an unbiased *k*-mer based [Jaccard similarity](https://en.wikipedia.org/wiki/Jaccard_index) using a combination of [minmers](https://www.biorxiv.org/content/10.1101/2023.05.16.540882v1) (a novel winnowing scheme) and [MinHash](https://en.wikipedia.org/wiki/MinHash). This is then converted to an estimate of sequence identity using the [Mash](http://mash.readthedocs.org) distance. An appropriate *k*-mer sampling rate is automatically determined using the given minimum local alignment length and identity thresholds. 
 
 As an example, Mashmap can map a human genome assembly to the human reference genome in about one minute total execution time and < 4 GB memory using just 8 CPU threads, achieving more than an order of magnitude improvement in both runtime and memory over alternative methods. We describe the algorithms associated with Mashmap, and report on speed, scalability, and accuracy of the software in the publications listed [below](#publications). Unlike traditional mappers, MashMap does not compute exact sequence alignments. In future, we plan to add an optional alignment support to generate base-to-base alignments.
 
@@ -58,6 +58,8 @@ We provide a perl [script](scripts) for generating dot-plots to visualize mappin
 Use the [latest release](https://github.com/marbl/MashMap/releases) for a stable version. 
 
 ## <a name=“publications”></a>Publications
+
+- **Bryce Kille, Erik Garrison, Todd Treangen, and Adam M Phillippy** ["Minmers are a generalization of minimizers that enable unbiased local Jaccard estimation"](https://doi.org/10.1101/2023.05.16.540882). *bioRxiv* (2023).
 
 - **Chirag Jain, Sergey Koren, Alexander Dilthey, Adam M. Phillippy, and Srinivas Aluru**. ["A Fast Adaptive Algorithm for Computing Whole-Genome Homology Maps"](https://doi.org/10.1093/bioinformatics/bty597). *Bioinformatics (ECCB issue)*, 2018.
 
