@@ -199,12 +199,20 @@ sequences shorter than segment length will be ignored", ArgvParser::OptionRequir
    */
   void printCmdOptions(skch::Parameters &parameters)
   {
+    std::cerr << "[mashmap] MashMap v" << fixed::VERSION << std::endl;
     std::cerr << "[mashmap] Reference = " << parameters.refSequences << std::endl;
     std::cerr << "[mashmap] Query = " << parameters.querySequences << std::endl;
     std::cerr << "[mashmap] Kmer size = " << parameters.kmerSize << std::endl;
     std::cerr << "[mashmap] Sketch size = " << parameters.sketchSize << std::endl;
     std::cerr << "[mashmap] Segment length = " << parameters.segLength << (parameters.split ? " (read split allowed)": " (read split disabled)") << std::endl;
-    std::cerr << "[mashmap] Block length min = " << parameters.block_length << std::endl;
+    if (parameters.block_length <= parameters.segLength)
+    {
+      std::cerr << "[mashmap] No block length filtering" << std::endl;
+    } else
+    {
+      std::cerr << "[mashmap] Block length min = " << parameters.block_length << std::endl;
+
+    }
     std::cerr << "[mashmap] Chaining gap max = " << parameters.chain_gap << std::endl;
     std::cerr << "[mashmap] Mappings per segment = " << parameters.numMappingsForSegment << std::endl;
     std::cerr << "[mashmap] Percentage identity threshold = " << 100 * parameters.percentageIdentity << "\%" << std::endl;
