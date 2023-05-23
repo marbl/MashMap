@@ -11,7 +11,7 @@ Dependencies:
 
 Steps:
 ------
-   cmake -h. -Bbuild -DCMAKE_BUILD_TYPE=Release 
+   cmake . -Bbuild -DCMAKE_BUILD_TYPE=Release 
    cmake --build build
 
 Products:
