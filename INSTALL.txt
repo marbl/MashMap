@@ -19,5 +19,5 @@ Products:
    - command line tool ( build/bin/mashmap)
 
   
-* If Zlib is not installed in a standard system location (it usually is),
-  CXXFLAGS and LDFLAGS will have to be modified before making.
+* If Zlib and/or GSL is not installed in a standard system location (it usually is),
+  CXXFLAGS, LDFLAGS, and LD_LIBRARY_PATH will have to be modified before making and running.
