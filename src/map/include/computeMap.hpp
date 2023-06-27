@@ -1595,7 +1595,7 @@ namespace skch
                      << sep << "id:f:" << e.nucIdentity;
             if (!param.mergeMappings) 
             {
-              outstrm << sep << "jc:f:" << e.conservedSketches / e.sketchSize;
+              outstrm << sep << "jc:f:" << float(e.conservedSketches) / e.sketchSize;
             }
           } else
           {
