@@ -19,17 +19,18 @@ endif()
 message(STATUS "CMAKE_BUILD_TYPE: ${CMAKE_BUILD_TYPE}")
 
 option(OPTIMIZE_FOR_NATIVE "Build with -march=native" ON)
+option(PROFILE             "Prevent inlining and add debug symbols" OFF)
 
 if (${CMAKE_BUILD_TYPE} MATCHES Release)
-    set(EXTRA_FLAGS "-Ofast ")
     if (OPTIMIZE_FOR_NATIVE)
       set(EXTRA_FLAGS "${EXTRA_FLAGS} -march=native")
     endif ()
-    set(CMAKE_CXX_FLAGS_RELEASE "-g -DNDEBUG") # reset CXX_FLAGS to replace -O3 with -Ofast
+    if (PROFILE)
+      set(EXTRA_FLAGS "${EXTRA_FLAGS} -g -fno-inline")
+    endif()
 endif ()
 
 if (${CMAKE_BUILD_TYPE} MATCHES Debug)
-    # Debug use the defaults - so commenting out:
     set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -O -g")
     set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O -g")
 else()
