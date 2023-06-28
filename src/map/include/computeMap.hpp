@@ -557,9 +557,6 @@ namespace skch
         // remove self-mode don't-maps
         this->filterSelfingLongToShorts(output->readMappings);
 
-        // remove alignments where the ratio between query and target length is < our identity threshold
-        this->filterFalseHighIdentity(output->readMappings);
-
         //Make sure mapping boundary don't exceed sequence lengths
         this->mappingBoundarySanityCheck(input, output->readMappings);
 
@@ -1595,7 +1592,7 @@ namespace skch
                      << sep << "id:f:" << e.nucIdentity;
             if (!param.mergeMappings) 
             {
-              outstrm << sep << "jc:f:" << e.conservedSketches / e.sketchSize;
+              outstrm << sep << "jc:f:" << float(e.conservedSketches) / e.sketchSize;
             }
           } else
           {

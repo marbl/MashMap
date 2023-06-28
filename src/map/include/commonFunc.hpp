@@ -238,12 +238,16 @@ namespace skch {
               }
             }
           }
-          std::for_each(sketched_vals.begin(), sketched_vals.end(),
-              [&minmerIndex](auto& pair) {
-              pair.second.strand = pair.second.strand > 0 ? strnd::FWD : (pair.second.strand == 0 ? strnd::AMBIG : strnd::REV);
-              minmerIndex.emplace_back(std::move(pair.second));
-          });
 
+          minmerIndex.resize(sketched_heap.size());
+          for (auto rev_it = minmerIndex.rbegin(); rev_it != minmerIndex.rend(); rev_it++)
+          {
+            *rev_it = (std::move(sketched_vals[sketched_heap.front()]));
+            (*rev_it).strand = (*rev_it).strand > 0 ? strnd::FWD : ((*rev_it).strand == 0 ? strnd::AMBIG : strnd::REV);
+
+            std::pop_heap(sketched_heap.begin(), sketched_heap.end());
+            sketched_heap.pop_back();
+          }
           return;
         }
         

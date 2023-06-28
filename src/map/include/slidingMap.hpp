@@ -101,10 +101,10 @@ namespace skch
         /**
          * @brief       Fills map with minimum 's' minmers in the query
          */
-        inline void init()
+        void init()
         {
           //Range of sketch in query
-          int idx = 0;
+          int idx = 1;
           for(auto it = Q.minmerTableQuery.begin(); it != Q.minmerTableQuery.end(); it++)
           {
             this->slidingWindowMinhashes[idx++] = slidingMapContainerValueType {
@@ -115,9 +115,6 @@ namespace skch
                 0}; // Active (shared)
           }
 
-          // Sort the hashes
-          std::sort(slidingWindowMinhashes.begin(), slidingWindowMinhashes.end(), slidingMapContainerValueType_comp);
-
           //Point pivot to last element in the map
           this->pivot = std::prev(this->slidingWindowMinhashes.end());
           pivRank = slidingWindowMinhashes.size() - 1;
@@ -125,7 +122,7 @@ namespace skch
 
       public:
 
-        inline void insert_minmer(const skch::MinmerInfo& mi)
+        void insert_minmer(const skch::MinmerInfo& mi)
         {
           // Find where minmer goes in vector
           auto insert_loc = std::lower_bound(
