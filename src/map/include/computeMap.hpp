@@ -1589,7 +1589,7 @@ namespace skch
             outstrm  << sep << e.conservedSketches
                      << sep << e.blockLength
                      << sep << fakeMapQ
-                     << sep << "id:f:" << e.nucIdentity;
+                     << sep << "id:f:" << (param.report_ANI_percentage ? 100.0 : 1.0) * e.nucIdentity;
             if (!param.mergeMappings) 
             {
               outstrm << sep << "jc:f:" << float(e.conservedSketches) / e.sketchSize;

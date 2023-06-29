@@ -123,6 +123,7 @@ sequences shorter than segment length will be ignored", ArgvParser::OptionRequir
     cmd.defineOptionAlternative("filter_mode", "f");
 
     cmd.defineOption("legacy", "MashMap2 output format");
+    cmd.defineOption("reportPercentage", "Report predicted ANI values in [0, 100] instead of [0,1] (necessary for use with wfmash)");
   }
 
   /**
@@ -596,6 +597,7 @@ sequences shorter than segment length will be ignored", ArgvParser::OptionRequir
       parameters.outFileName = "mashmap.out";
 
     parameters.legacy_output = cmd.foundOption("legacy");
+    parameters.report_ANI_percentage = cmd.foundOption("reportPercentage");
 
     printCmdOptions(parameters);
 
