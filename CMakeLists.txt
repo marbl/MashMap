@@ -33,6 +33,8 @@ endif ()
 if (${CMAKE_BUILD_TYPE} MATCHES Debug)
     set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -O -g")
     set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O -g")
+    add_compile_options(-fsanitize=address)
+    add_link_options(-fsanitize=address)
 else()
     # Use all standard-compliant optimizations - always add these:
     set (CMAKE_C_FLAGS "${OpenMP_C_FLAGS} ${PIC_FLAG} ${EXTRA_FLAGS}")
