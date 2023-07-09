@@ -91,7 +91,7 @@ float confidence_interval = 0.95;                   // Confidence interval to re
 float percentage_identity = 0.85;                   // Percent identity in the mapping step
 float ANIDiff = 0.0;                                // Stage 1 ANI diff threshold
 float ANIDiffConf = 0.999;                          // ANI diff confidence
-std::string VERSION = "3.0.5";                      // Version of MashMap
+std::string VERSION = "3.0.6";                      // Version of MashMap
 }
 }
 
