@@ -103,6 +103,8 @@ sequences shorter than segment length will be ignored", ArgvParser::OptionRequir
     cmd.defineOption("hgFilterAniDiff", "Filter out mappings unlikely to be this ANI less than the best mapping [default: 0.0]", ArgvParser::OptionRequiresValue);
     cmd.defineOption("hgFilterConf", "Confidence value for the hypergeometric filtering [default: 0.999]", ArgvParser::OptionRequiresValue);
 
+    cmd.defineOption("filterLengthMismatches", "Filter mappings where the ratio of reference/query mapped lengths disagrees with the ANI threshold");
+
     cmd.defineOption("skipSelf", "skip self mappings when the query and target name is the same (for all-vs-all mode)");
     cmd.defineOptionAlternative("skipSelf", "X");
 
@@ -346,6 +348,7 @@ sequences shorter than segment length will be ignored", ArgvParser::OptionRequir
     //Do not expose the option to set protein alphabet in mashmap
     //parameters.alphabetSize = 20;
     
+    parameters.filterLengthMismatches = cmd.foundOption("filterLengthMismatches"); 
     parameters.stage1_topANI_filter = !cmd.foundOption("noHgFilter"); 
 
     if(cmd.foundOption("filter_mode"))

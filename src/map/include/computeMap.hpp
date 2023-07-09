@@ -674,9 +674,11 @@ namespace skch
         // remove self-mode don't-maps
         this->filterSelfingLongToShorts(output->readMappings);
         
-        // Currently causing issues, disabling for now
         // remove alignments where the ratio between query and target length is < our identity threshold
-        //this->filterFalseHighIdentity(output->readMappings);
+        if (param.filterLengthMismatches)
+        {
+          this->filterFalseHighIdentity(output->readMappings);
+        }
 
         //Make sure mapping boundary don't exceed sequence lengths
         this->mappingBoundarySanityCheck(input, output->readMappings);

@@ -59,6 +59,7 @@ struct Parameters
     bool mergeMappings;                               //if we should merge consecutive segment mappings
     bool keep_low_pct_id;                             //true if we should keep mappings whose estimated identity < percentageIdentity
     bool report_ANI_percentage;                       //true if ANI should be in [0,100] as opposed to [0,1] (this is necessary for wfmash
+    bool filterLengthMismatches;                      //true if filtering out length mismatches
 
 
     int sketchSize;
