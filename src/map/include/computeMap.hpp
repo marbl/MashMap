@@ -554,7 +554,7 @@ namespace skch
         MappingResultsVector_t unfilteredMappings;
         int refGroup = this->getRefGroup(input->seqName);
 
-        if(! param.split || input->len <= param.segLength)
+        if(! param.split || input->len <= param.segLength || input->len <= param.block_length)
         {
           QueryMetaData <MinVec_Type> Q;
           Q.seq = &(input->seq)[0u];
