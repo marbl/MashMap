@@ -1177,19 +1177,6 @@ namespace skch
 
             l2_vec.clear();
             computeL2MappedRegions(Q, candidateLocus, l2_vec);
-            //if (l2_vec.size() > 1)
-            //{
-              //std::cerr <<  candidateLocus.seqId << ":"
-               //<< candidateLocus.rangeStartPos << "--" << candidateLocus.rangeEndPos  << " == " << candidateLocus.rangeEndPos - candidateLocus.rangeStartPos
-               //<< std::endl;
-              //std::cerr << candidateLocus.intersectionSize
-               //<< "-->" << sketchCutoffs[candidateLocus.intersectionSize] << std::endl;
-              //for (const auto& l2 : l2_vec)
-              //{
-                //std::cerr << l2.optimalStart << "--" << l2.optimalEnd << "\t" << l2.sharedSketchSize << std::endl;  
-              //}
-              //std::cerr << std::endl;
-            //}
 
             for (auto& l2 : l2_vec) 
             {
