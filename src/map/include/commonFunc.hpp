@@ -16,7 +16,6 @@
 #include <numeric>
 #include <queue>
 #include <sstream>
-#include <string_view>
 
 //Own includes
 #include "map/include/map_parameters.hpp"
@@ -189,7 +188,6 @@ namespace skch {
           sketched_heap.reserve(sketchSize+1);
             
           // Get distance until last "N"
-          std::string_view first_kmer(seq, kmerSize);
           int ambig_kmer_count = 0;
           for (int i = kmerSize - 1; i >= 0; i--)
           {
