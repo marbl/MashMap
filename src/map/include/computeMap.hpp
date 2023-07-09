@@ -646,15 +646,6 @@ namespace skch
                           param.numMappingsForShortSequence
                           : param.numMappingsForSegment) - 1;
 
-        // TODO this should happen after chaining i think
-        if (param.filterMode == filter::MAP || param.filterMode == filter::ONETOONE) {                      
-          if (!param.stage1_topANI_filter) {
-            filterByGroup(unfilteredMappings, output->readMappings, n_mappings*100);
-            std::swap(unfilteredMappings, output->readMappings);
-            output->readMappings.clear();
-          }
-        }
-
         if (split_mapping) 
         {
           if (param.mergeMappings) 
@@ -662,18 +653,19 @@ namespace skch
             // hardcore merge using the chain gap
             mergeMappingsInRange(unfilteredMappings, param.chain_gap);
             //mergeMappings(unfilteredMappings);
-            if (param.filterMode == filter::MAP || param.filterMode == filter::ONETOONE) {                      
-              MappingResultsVector_t tempMappings;
-              tempMappings.reserve(output->readMappings.size());
-              filterByGroup(unfilteredMappings, tempMappings, n_mappings);
-              std::swap(tempMappings, unfilteredMappings);
-            }
             if (input->len >= param.block_length) 
             {
               // remove short chains that didn't exceed block length
               filterWeakMappings(unfilteredMappings, std::floor(param.block_length / param.segLength));
             }
           }
+        }
+
+        if (param.filterMode == filter::MAP || param.filterMode == filter::ONETOONE) {                      
+          MappingResultsVector_t tempMappings;
+          tempMappings.reserve(output->readMappings.size());
+          filterByGroup(unfilteredMappings, tempMappings, n_mappings);
+          std::swap(tempMappings, unfilteredMappings);
         }
 
         std::swap(output->readMappings, unfilteredMappings);
