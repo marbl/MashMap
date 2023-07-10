@@ -225,12 +225,9 @@ namespace skch
           , seqName(id) { }
   };
 
-  struct InputSeqProgContainer
+  struct InputSeqProgContainer : InputSeqContainer
   {
-    seqno_t seqCounter;                         //sequence counter
-    offset_t len;                               //sequence length
-    std::string seq;                            //sequence string
-    std::string seqName;                        //sequence id
+    using InputSeqContainer::InputSeqContainer;
     progress_meter::ProgressMeter& progress;    //progress meter (shared)
                                                 
 
@@ -241,10 +238,7 @@ namespace skch
      * @param[in] len       length of sequence
      */
       InputSeqProgContainer(const std::string& s, const std::string& id, seqno_t seqcount, progress_meter::ProgressMeter& pm)
-          : seqCounter(seqcount)
-          , len(s.length())
-          , seq(s)
-          , seqName(id)
+          : InputSeqContainer(s, id, seqcount)
           , progress(pm) { }
   };
 
