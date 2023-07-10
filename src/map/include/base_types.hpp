@@ -166,7 +166,7 @@ namespace skch
 
                                                         //--for split read mapping
 
-    long double seqComplexity;                               // Estimated sequence complexity
+    long double kmerComplexity;                               // Estimated sequence complexity
     int n_merged;                                       // how many mappings we've merged into this one
     offset_t splitMappingId;                            // To identify split mappings that are chained
     uint8_t discard;                                    // set to 1 for deletion
@@ -276,7 +276,7 @@ namespace skch
       MinmerVec minmerTableQuery;         //Vector of minmers in the query
       MinmerVec seedHits;                 //Vector of minmers in the reference
       int refGroup;                       //Prefix group of sequence
-      float seqComplexity;                //Estimated sequence complexity
+      float kmerComplexity;                //Estimated sequence complexity
     };
 }
 

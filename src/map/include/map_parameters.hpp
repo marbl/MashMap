@@ -60,6 +60,7 @@ struct Parameters
     bool keep_low_pct_id;                             //true if we should keep mappings whose estimated identity < percentageIdentity
     bool report_ANI_percentage;                       //true if ANI should be in [0,100] as opposed to [0,1] (this is necessary for wfmash
     bool filterLengthMismatches;                      //true if filtering out length mismatches
+    float kmerComplexityThreshold;                    //minimum kmer complexity to consider (default 0)
 
 
     int sketchSize;

@@ -95,6 +95,7 @@ sequences shorter than segment length will be ignored", ArgvParser::OptionRequir
     cmd.defineOptionAlternative("kmer","k");
 
     cmd.defineOption("kmerThreshold", "ignore the top \% most-frequent kmer window [default: 0.001]", ArgvParser::OptionRequiresValue);
+    cmd.defineOption("kmerComplexity", "threshold for kmer complexity [0, 1] [default : 0.0]", ArgvParser::OptionRequiresValue);
 
 
     //cmd.defineOption("shortenCandidateRegions", "Only compute rolling minhash score for small regions around positions where the intersection of reference and query minmers is locally maximal. Results in slighty faster runtimes at the cost of mapping placement and ANI prediction.");
@@ -508,6 +509,16 @@ sequences shorter than segment length will be ignored", ArgvParser::OptionRequir
     }
     else
       parameters.percentageIdentity = 0.85;
+    str.clear();
+
+    if(cmd.foundOption("kmerComplexity"))
+    {
+      str << cmd.optionValue("kmerComplexity");
+      str >> parameters.kmerComplexityThreshold;
+      str.clear();
+    }
+    else
+      parameters.kmerComplexityThreshold = 0.0;
     str.clear();
 
 

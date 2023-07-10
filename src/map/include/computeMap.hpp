@@ -804,7 +804,7 @@ namespace skch
           int orig_len = Q.minmerTableQuery.size();
 #endif
           const double max_hash_01 = (long double)(Q.minmerTableQuery.back().hash) / std::numeric_limits<hash_t>::max();
-          Q.seqComplexity = (double(Q.minmerTableQuery.size()) / max_hash_01) / ((Q.len - param.kmerSize + 1)*2);
+          Q.kmerComplexity = (double(Q.minmerTableQuery.size()) / max_hash_01) / ((Q.len - param.kmerSize + 1)*2);
 
           // TODO remove them from the original sketch instead of removing for each read
           auto new_end = std::remove_if(Q.minmerTableQuery.begin(), Q.minmerTableQuery.end(), [&](auto& mi) {
@@ -1191,8 +1191,9 @@ namespace skch
               // if we are in all-vs-all mode, it isn't a self-mapping,
               // and if we are self-mapping, the query is shorter than the target
               const auto& ref = this->refSketch.metadata[l2.seqId];
-              if((param.keep_low_pct_id && nucIdentityUpperBound >= param.percentageIdentity)
-                  || nucIdentity >= param.percentageIdentity)
+              if((Q.kmerComplexity >= param.kmerComplexityThreshold)
+                  && ((param.keep_low_pct_id && nucIdentityUpperBound >= param.percentageIdentity)
+                  || nucIdentity >= param.percentageIdentity))
               {
                 //Track the best jaccard numerator
                 bestJaccardNumerator = std::max<double>(bestJaccardNumerator, l2.sharedSketchSize);
@@ -1215,7 +1216,7 @@ namespace skch
                   res.blockLength = std::max(res.refEndPos - res.refStartPos, res.queryEndPos - res.queryStartPos);
                   res.approxMatches = std::round(res.nucIdentity * res.blockLength / 100.0);
                   res.strand = l2.strand; 
-                  res.seqComplexity = Q.seqComplexity;
+                  res.kmerComplexity = Q.kmerComplexity;
 
                   res.selfMapFilter = ((param.skip_self || param.skip_prefix) && Q.fullLen > ref.len);
 
@@ -1528,8 +1529,8 @@ namespace skch
                                   [](double x, MappingResult &e){ return x + e.nucIdentity; })     )/ std::distance(it, it_end);
 
             //Mean sequence complexity of all mappings in the chain
-            it->seqComplexity = (   std::accumulate(it, it_end, 0.0,
-                                  [](double x, MappingResult &e){ return x + e.seqComplexity; })     )/ std::distance(it, it_end);
+            it->kmerComplexity = (   std::accumulate(it, it_end, 0.0,
+                                  [](double x, MappingResult &e){ return x + e.kmerComplexity; })     )/ std::distance(it, it_end);
 
             //Discard other mappings of this chain
             std::for_each( std::next(it), it_end, [&](MappingResult &e){ e.discard = 1; });
@@ -1749,7 +1750,7 @@ namespace skch
                      << sep << e.blockLength
                      << sep << fakeMapQ
                      << sep << "id:f:" << (param.report_ANI_percentage ? 100.0 : 1.0) * e.nucIdentity
-                     << sep << "sc:f:" << e.seqComplexity;
+                     << sep << "kc:f:" << e.kmerComplexity;
             if (!param.mergeMappings) 
             {
               outstrm << sep << "jc:f:" << float(e.conservedSketches) / e.sketchSize;
