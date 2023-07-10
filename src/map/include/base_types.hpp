@@ -10,6 +10,7 @@
 #include <tuple>
 #include <vector>
 #include <chrono>
+#include "common/progress.hpp"
 
 namespace skch
 {
@@ -165,6 +166,7 @@ namespace skch
 
                                                         //--for split read mapping
 
+    long double kmerComplexity;                               // Estimated sequence complexity
     int n_merged;                                       // how many mappings we've merged into this one
     offset_t splitMappingId;                            // To identify split mappings that are chained
     uint8_t discard;                                    // set to 1 for deletion
@@ -204,10 +206,11 @@ namespace skch
   //Container to save copy of kseq object
   struct InputSeqContainer
   {
-    seqno_t seqCounter;                 //sequence counter
-    offset_t len;                       //sequence length
-    std::string seq;                    //sequence string
-    std::string seqName;                //sequence id
+    seqno_t seqCounter;                         //sequence counter
+    offset_t len;                               //sequence length
+    std::string seq;                            //sequence string
+    std::string seqName;                        //sequence id
+
 
     /*
      * @brief               constructor
@@ -216,11 +219,29 @@ namespace skch
      * @param[in] len       length of sequence
      */
       InputSeqContainer(const std::string& s, const std::string& id, seqno_t seqcount)
-          : seq(s)
-          , seqName(id)
+          : seqCounter(seqcount)
           , len(s.length())
-          , seqCounter(seqcount) { }
+          , seq(s)
+          , seqName(id) { }
   };
+
+  struct InputSeqProgContainer : InputSeqContainer
+  {
+    using InputSeqContainer::InputSeqContainer;
+    progress_meter::ProgressMeter& progress;    //progress meter (shared)
+                                                
+
+    /*
+     * @brief               constructor
+     * @param[in] kseq_seq  complete read or reference sequence
+     * @param[in] kseq_id   sequence id name
+     * @param[in] len       length of sequence
+     */
+      InputSeqProgContainer(const std::string& s, const std::string& id, seqno_t seqcount, progress_meter::ProgressMeter& pm)
+          : InputSeqContainer(s, id, seqcount)
+          , progress(pm) { }
+  };
+
 
   //Output type of map function
   struct MapModuleOutput
@@ -248,6 +269,8 @@ namespace skch
       std::string seqName;                //sequence name
       MinmerVec minmerTableQuery;         //Vector of minmers in the query
       MinmerVec seedHits;                 //Vector of minmers in the reference
+      int refGroup;                       //Prefix group of sequence
+      float kmerComplexity;                //Estimated sequence complexity
     };
 }
 

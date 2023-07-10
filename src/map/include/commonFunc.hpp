@@ -186,9 +186,25 @@ namespace skch {
           ankerl::unordered_dense::map<hash_t, MinmerInfo> sketched_vals;
           std::vector<hash_t> sketched_heap;
           sketched_heap.reserve(sketchSize+1);
+            
+          // Get distance until last "N"
+          int ambig_kmer_count = 0;
+          for (int i = kmerSize - 1; i >= 0; i--)
+          {
+            if (seq[i] == 'N')
+            {
+                ambig_kmer_count = i+1;
+                break;
+            }    
+          } 
 
           for(offset_t i = 0; i < len - kmerSize + 1; i++)
           {
+
+            if (seq[i+kmerSize-1] == 'N')
+            {
+              ambig_kmer_count = kmerSize;
+            }
             //Hash kmers
             hash_t hashFwd = CommonFunc::getHash(seq + i, kmerSize); 
             hash_t hashBwd;
@@ -199,7 +215,7 @@ namespace skch {
               hashBwd = std::numeric_limits<hash_t>::max();   //Pick a dummy high value so that it is ignored later
 
             //Consider non-symmetric kmers only
-            if(hashBwd != hashFwd)
+            if(hashBwd != hashFwd && ambig_kmer_count == 0)
             {
               //Take minimum value of kmer and its reverse complement
               hash_t currentKmer = std::min(hashFwd, hashBwd);
@@ -236,6 +252,10 @@ namespace skch {
                   sketched_vals[currentKmer].strand += currentStrand == strnd::FWD ? 1 : -1;
                 }
               }
+            }
+            if (ambig_kmer_count > 0)
+            {
+              ambig_kmer_count--;
             }
           }
 
@@ -293,6 +313,10 @@ namespace skch {
 
             //if(alphabetSize == 4) //not protein
               //CommonFunc::reverseComplement(seq, seqRev.get(), len);
+            
+            // Get distance until last "N"
+            int ambig_kmer_count = 0;
+
 
             for(offset_t i = 0; i < len - kmerSize + 1; i++)
             {
@@ -369,8 +393,12 @@ namespace skch {
                 Q.pop_front();
               }
 
+              if (seq[i+kmerSize-1] == 'N')
+              {
+                ambig_kmer_count = kmerSize;
+              }
               //Consider non-symmetric kmers only
-              if(hashBwd != hashFwd)
+              if(hashBwd != hashFwd && ambig_kmer_count == 0)
               {
                 // Add current hash to window
                 Q.push_back(std::make_tuple(currentKmer, currentStrand, i)); 
@@ -399,6 +427,11 @@ namespace skch {
                   std::push_heap(heapWindow.begin(), heapWindow.end(), KIHeap_cmp);
                 }
               }
+              if (ambig_kmer_count > 0)
+              {
+                ambig_kmer_count--;
+              }
+              
 
 
 

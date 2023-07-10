@@ -58,6 +58,10 @@ struct Parameters
     char prefix_delim;                                //the prefix delimiter
     bool mergeMappings;                               //if we should merge consecutive segment mappings
     bool keep_low_pct_id;                             //true if we should keep mappings whose estimated identity < percentageIdentity
+    bool report_ANI_percentage;                       //true if ANI should be in [0,100] as opposed to [0,1] (this is necessary for wfmash
+    bool filterLengthMismatches;                      //true if filtering out length mismatches
+    float kmerComplexityThreshold;                    //minimum kmer complexity to consider (default 0)
+
 
     int sketchSize;
     bool use_spaced_seeds;                            //
@@ -89,7 +93,7 @@ float confidence_interval = 0.95;                   // Confidence interval to re
 float percentage_identity = 0.85;                   // Percent identity in the mapping step
 float ANIDiff = 0.0;                                // Stage 1 ANI diff threshold
 float ANIDiffConf = 0.999;                          // ANI diff confidence
-std::string VERSION = "3.0.5";                      // Version of MashMap
+std::string VERSION = "3.0.6";                      // Version of MashMap
 }
 }
 

@@ -95,6 +95,7 @@ sequences shorter than segment length will be ignored", ArgvParser::OptionRequir
     cmd.defineOptionAlternative("kmer","k");
 
     cmd.defineOption("kmerThreshold", "ignore the top \% most-frequent kmer window [default: 0.001]", ArgvParser::OptionRequiresValue);
+    cmd.defineOption("kmerComplexity", "threshold for kmer complexity [0, 1] [default : 0.0]", ArgvParser::OptionRequiresValue);
 
 
     //cmd.defineOption("shortenCandidateRegions", "Only compute rolling minhash score for small regions around positions where the intersection of reference and query minmers is locally maximal. Results in slighty faster runtimes at the cost of mapping placement and ANI prediction.");
@@ -102,6 +103,8 @@ sequences shorter than segment length will be ignored", ArgvParser::OptionRequir
     cmd.defineOption("noHgFilter", "Don't use the hypergeometric filtering and instead use the MashMap2 first pass filtering.");
     cmd.defineOption("hgFilterAniDiff", "Filter out mappings unlikely to be this ANI less than the best mapping [default: 0.0]", ArgvParser::OptionRequiresValue);
     cmd.defineOption("hgFilterConf", "Confidence value for the hypergeometric filtering [default: 0.999]", ArgvParser::OptionRequiresValue);
+
+    cmd.defineOption("filterLengthMismatches", "Filter mappings where the ratio of reference/query mapped lengths disagrees with the ANI threshold");
 
     cmd.defineOption("skipSelf", "skip self mappings when the query and target name is the same (for all-vs-all mode)");
     cmd.defineOptionAlternative("skipSelf", "X");
@@ -123,6 +126,7 @@ sequences shorter than segment length will be ignored", ArgvParser::OptionRequir
     cmd.defineOptionAlternative("filter_mode", "f");
 
     cmd.defineOption("legacy", "MashMap2 output format");
+    cmd.defineOption("reportPercentage", "Report predicted ANI values in [0, 100] instead of [0,1] (necessary for use with wfmash)");
   }
 
   /**
@@ -345,6 +349,7 @@ sequences shorter than segment length will be ignored", ArgvParser::OptionRequir
     //Do not expose the option to set protein alphabet in mashmap
     //parameters.alphabetSize = 20;
     
+    parameters.filterLengthMismatches = cmd.foundOption("filterLengthMismatches"); 
     parameters.stage1_topANI_filter = !cmd.foundOption("noHgFilter"); 
 
     if(cmd.foundOption("filter_mode"))
@@ -506,6 +511,16 @@ sequences shorter than segment length will be ignored", ArgvParser::OptionRequir
       parameters.percentageIdentity = 0.85;
     str.clear();
 
+    if(cmd.foundOption("kmerComplexity"))
+    {
+      str << cmd.optionValue("kmerComplexity");
+      str >> parameters.kmerComplexityThreshold;
+      str.clear();
+    }
+    else
+      parameters.kmerComplexityThreshold = 0.0;
+    str.clear();
+
 
     if (cmd.foundOption("hgFilterAniDiff")) {
       str << cmd.optionValue("hgFilterAniDiff");
@@ -596,6 +611,7 @@ sequences shorter than segment length will be ignored", ArgvParser::OptionRequir
       parameters.outFileName = "mashmap.out";
 
     parameters.legacy_output = cmd.foundOption("legacy");
+    parameters.report_ANI_percentage = cmd.foundOption("reportPercentage");
 
     printCmdOptions(parameters);
 
