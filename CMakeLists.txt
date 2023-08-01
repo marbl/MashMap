@@ -19,6 +19,10 @@ endif()
 message(STATUS "CMAKE_BUILD_TYPE: ${CMAKE_BUILD_TYPE}")
 
 option(OPTIMIZE_FOR_NATIVE "Build with -march=native" ON)
+option(LARGE_CONTIG "Use 64-bit integers instead of 32 bit for sequence coordinates" OFF)
+if (LARGE_CONTIG)
+  add_definitions(-DLARGE_CONTIG)
+endif()
 option(PROFILE             "Prevent inlining and add debug symbols" OFF)
 
 if (${CMAKE_BUILD_TYPE} MATCHES Release)
