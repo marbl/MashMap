@@ -991,7 +991,8 @@ namespace skch
           int prevPrevOverlap = 0;
 
           // Need to keep track of two positions, as the previous one will be the local optimum
-          SeqCoord prevPos, currentPos;
+          SeqCoord prevPos;
+          SeqCoord currentPos{leadingIt->seqId, leadingIt->pos};
 
 
           while (leadingIt != ip_end)
