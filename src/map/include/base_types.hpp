@@ -136,14 +136,14 @@ namespace skch
 
   struct KmerInfo
   {
-    hash_t hash;
+    hash_t weightedHash;
     seqno_t seqId;
     offset_t pos;
     strand_t strand; 
   };
 
   template <class T>
-  inline void hash_combine(std::size_t & s, const T & v)
+  inline void hash_combine_res(std::size_t & s, const T & v)
   {
       std::hash<T> h;
       s^= h(v) + 0x9e3779b9 + (s<< 6) + (s>> 2);
@@ -186,20 +186,20 @@ namespace skch
 
     size_t hash(void) {
       size_t res = 0;
-      hash_combine(res, queryLen);
-      hash_combine(res, refStartPos);
-      hash_combine(res, refEndPos);
-      hash_combine(res, queryStartPos);
-      hash_combine(res, queryEndPos);
-      hash_combine(res, refSeqId);
-      hash_combine(res, querySeqId);
-      hash_combine(res, blockLength);
-      hash_combine(res, nucIdentity);
-      hash_combine(res, nucIdentityUpperBound);
-      hash_combine(res, sketchSize);
-      hash_combine(res, conservedSketches);
-      hash_combine(res, strand);
-      hash_combine(res, approxMatches);
+      hash_combine_res(res, queryLen);
+      hash_combine_res(res, refStartPos);
+      hash_combine_res(res, refEndPos);
+      hash_combine_res(res, queryStartPos);
+      hash_combine_res(res, queryEndPos);
+      hash_combine_res(res, refSeqId);
+      hash_combine_res(res, querySeqId);
+      hash_combine_res(res, blockLength);
+      hash_combine_res(res, nucIdentity);
+      hash_combine_res(res, nucIdentityUpperBound);
+      hash_combine_res(res, sketchSize);
+      hash_combine_res(res, conservedSketches);
+      hash_combine_res(res, strand);
+      hash_combine_res(res, approxMatches);
       return res;
     }
 
