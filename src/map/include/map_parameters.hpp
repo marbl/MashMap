@@ -12,6 +12,7 @@
 namespace stdfs = std::filesystem;
 
 #include "common/ALeS.hpp"
+#include "base_types.hpp"
 
 namespace skch
 {
@@ -32,12 +33,12 @@ struct Parameters
 {
     int kmerSize;                                     //kmer size for sketching
     float kmer_pct_threshold;                         //use only kmers not in the top kmer_pct_threshold %-ile
-    int64_t segLength;                                //For split mapping case, this represents the fragment length
+    offset_t segLength;                                //For split mapping case, this represents the fragment length
                                                       //for noSplit, it represents minimum read length to multimap
-    int64_t block_length;                             // minimum (potentially merged) block to keep if we aren't split
-    int64_t chain_gap;                                // max distance for 2d range union-find mapping chaining
+    offset_t block_length;                             // minimum (potentially merged) block to keep if we aren't split
+    offset_t chain_gap;                                // max distance for 2d range union-find mapping chaining
     int alphabetSize;                                 //alphabet size
-    uint64_t referenceSize;                           //Approximate reference size
+    offset_t referenceSize;                           //Approximate reference size
     float percentageIdentity;                         //user defined threshold for good similarity
     bool stage2_full_scan;                            //Instead of using the best intersection for a given candidate region, compute the minhash for every position in the window
     bool stage1_topANI_filter;                        //Use the ANI filter in stage 1
