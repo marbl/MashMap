@@ -457,7 +457,7 @@ sequences shorter than segment length will be ignored", ArgvParser::OptionRequir
     }
 
     if (cmd.foundOption("kmerThreshold")) {
-        str << cmd.foundOption("kmerThreshold");
+        str << cmd.optionValue("kmerThreshold");
         str >> parameters.kmer_pct_threshold;
     } else {
         parameters.kmer_pct_threshold = 0.001; // in percent! so we keep 99.999% of kmers
