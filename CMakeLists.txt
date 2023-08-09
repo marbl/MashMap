@@ -58,6 +58,8 @@ add_compile_options(-Wfatal-errors)
 #)
 #FetchContent_MakeAvailable(assert)
 
+add_subdirectory(src/common/libbf EXCLUDE_FROM_ALL)
+
 add_executable(mashmap
   src/common/utils.cpp
   src/map/mash_map.cpp) 
@@ -69,11 +71,13 @@ add_executable(mashmap-align
 target_include_directories(mashmap PRIVATE
   src
   src/common
+  src/common/libbf
   )
 
 target_include_directories(mashmap-align PRIVATE
   src
   src/common
+  src/common/libbf
   )
 
 
@@ -84,6 +88,7 @@ target_link_libraries(mashmap
   pthread
   #rt
   z
+  libbf_static
   #assert
 )
 
@@ -94,6 +99,7 @@ target_link_libraries(mashmap-align
   pthread
   #rt
   z
+  libbf_static
   #assert
 )
 

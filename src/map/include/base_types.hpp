@@ -137,6 +137,8 @@ namespace skch
   struct KmerInfo
   {
     hash_t weightedHash;
+    hash_t unweightedHash;
+    size_t frequency;
     seqno_t seqId;
     offset_t pos;
     strand_t strand; 

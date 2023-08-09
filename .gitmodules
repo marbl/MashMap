@@ -1,0 +1,3 @@
+[submodule "src/common/libbf"]
+	path = src/common/libbf
+	url = git@github.com:mavam/libbf.git
