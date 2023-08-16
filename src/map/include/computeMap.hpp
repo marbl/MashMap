@@ -555,7 +555,7 @@ namespace skch
         MappingResultsVector_t unfilteredMappings;
         int refGroup = this->getRefGroup(input->seqName);
 
-        if(! param.split || input->len <= param.segLength || input->len <= param.block_length)
+        if(! param.split || input->len <= param.segLength)
         {
           QueryMetaData <MinVec_Type> Q;
           Q.seq = &(input->seq)[0u];
@@ -654,11 +654,9 @@ namespace skch
             // hardcore merge using the chain gap
             mergeMappingsInRange(unfilteredMappings, param.chain_gap);
             //mergeMappings(unfilteredMappings);
-            if (input->len >= param.block_length) 
-            {
-              // remove short chains that didn't exceed block length
-              filterWeakMappings(unfilteredMappings, std::floor(param.block_length / param.segLength));
-            }
+
+            // remove short chains that didn't exceed block length
+            filterWeakMappings(unfilteredMappings, std::floor(param.block_length / param.segLength));
           }
         }
 
