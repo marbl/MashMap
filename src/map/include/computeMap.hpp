@@ -863,8 +863,9 @@ namespace skch
             const IP_const_iterator ip_it = pq.front().it;
             const auto& ref = this->refSketch.metadata[ip_it->seqId];
             if ((!param.skip_prefix && !param.skip_self)
-                || ((Q.fullLen <= ref.len)
-                  && ((param.skip_self && Q.seqName != ref.name)
+                || (
+                  //(Q.fullLen <= ref.len) &&
+                  ((param.skip_self && Q.seqName != ref.name)
                       || (param.skip_prefix && this->refIdGroup[ip_it->seqId] != Q.refGroup)))
             ) {
               intervalPoints.push_back(*ip_it);
