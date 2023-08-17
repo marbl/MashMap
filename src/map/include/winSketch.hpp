@@ -146,6 +146,18 @@ namespace skch
        */
       void build()
       {
+
+        // allowed set of targets
+        std::unordered_set<std::string> allowed_target_names;
+        if (!param.target_list.empty()) {
+                std::ifstream filter_list(param.target_list);
+                std::string name;
+                while (getline(filter_list, name)) {
+                        allowed_target_names.insert(name); 
+                }
+        }
+
+
         //sequence counter while parsing file
         seqno_t seqCounter = 0;
 
@@ -168,6 +180,8 @@ namespace skch
 
         seqiter::for_each_seq_in_file(
             fileName,
+            allowed_target_names,
+            param.target_prefix,
             [&](const std::string& seq_name,
                 const std::string& seq) {
                 // todo: offset_t is an 32-bit integer, which could cause problems
@@ -197,6 +211,12 @@ namespace skch
             });
 
           sequencesByFileInfo.push_back(seqCounter);
+        }
+
+        if (seqCounter == 0)
+        {
+          std::cerr << "[mashmap::skch::Sketch::build] ERROR: No sequences indexed!" << std::endl;
+          exit(1);
         }
 
         if (param.loadIndexFilename.empty()) {

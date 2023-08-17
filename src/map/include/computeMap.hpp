@@ -293,7 +293,7 @@ namespace skch
                 // if not, warn that this is expensive
                 std::cerr << "[mashmap::skch::Map::mapQuery] WARNING, no .fai index found for " << fileName << ", reading the file to sum sequence length (slow)" << std::endl;
                 seqiter::for_each_seq_in_file(
-                    fileName,
+                    fileName, {}, "",
                     [&](const std::string& seq_name,
                         const std::string& seq) {
                         ++total_seqs;
@@ -312,7 +312,7 @@ namespace skch
 #endif
 
             seqiter::for_each_seq_in_file(
-                fileName,
+                fileName, {}, "",
                 [&](const std::string& seq_name,
                     const std::string& seq) {
                     // todo: offset_t is an 32-bit integer, which could cause problems

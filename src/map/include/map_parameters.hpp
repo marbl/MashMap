@@ -57,6 +57,8 @@ struct Parameters
     bool skip_self;                                   //skip self mappings
     bool skip_prefix;                                 //skip mappings to sequences with the same prefix
     char prefix_delim;                                //the prefix delimiter
+    std::string target_list;  					      //file containing list of target sequences
+    std::string target_prefix; 					      //prefix for target sequences to use
     bool mergeMappings;                               //if we should merge consecutive segment mappings
     bool keep_low_pct_id;                             //true if we should keep mappings whose estimated identity < percentageIdentity
     bool report_ANI_percentage;                       //true if ANI should be in [0,100] as opposed to [0,1] (this is necessary for wfmash

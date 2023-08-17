@@ -112,6 +112,9 @@ sequences shorter than segment length will be ignored", ArgvParser::OptionRequir
     cmd.defineOption("skipPrefix", "skip mappings when the query and target have the same prefix before the last occurrence of the given character C", ArgvParser::OptionRequiresValue);
     cmd.defineOptionAlternative("skipPrefix", "Y");
 
+    cmd.defineOption("targetPrefix", "Only index reference sequences beginning with this prefix", ArgvParser::OptionRequiresValue);
+    cmd.defineOption("targetList", "file containing list of target sequence names", ArgvParser::OptionRequiresValue);
+
     cmd.defineOption("sparsifyMappings", "keep this fraction of mappings", ArgvParser::OptionRequiresValue);
     cmd.defineOptionAlternative("sparsifyMappings", "x");
 
@@ -328,8 +331,21 @@ sequences shorter than segment length will be ignored", ArgvParser::OptionRequir
       parameters.skip_prefix = false;
       parameters.prefix_delim = '\0';
     }
-
     str.clear();
+
+    if (cmd.foundOption("targetList"))
+    {
+      str << cmd.optionValue("targetList");
+      str >> parameters.target_list;
+    }
+    str.clear();
+
+    if (cmd.foundOption("targetPrefix"))
+    {
+      str << cmd.optionValue("targetPrefix");
+      str >> parameters.target_prefix;
+    }
+
 
     if (cmd.foundOption("saveIndex")) {
         str << cmd.optionValue("saveIndex");
