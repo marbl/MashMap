@@ -33,12 +33,15 @@ jobs:
       uses: actions/checkout@v2
       with:
         submodules: 'true'
-    - name: Install requirements
+    - name: Setup apt
       run: 
         - sudo apt install build-essential manpages-dev software-properties-common
         - sudo add-apt-repository ppa:ubuntu-toolchain-r/test
-        - sudo apt update && sudo apt install ${{ matrix.compiler.CC }} ${{ matrix.compiler.CXX }}
-        >- sudo apt install 
+        - sudo apt update && sudo apt install
+    - name: Install Requirements
+     run: sudo apt install  -y
+          ${{ matrix.compiler.CC }} 
+          ${{ matrix.compiler.CXX }}
           libhts-dev 
           libjemalloc-dev
           libgsl-dev
