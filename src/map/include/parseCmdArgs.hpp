@@ -106,6 +106,8 @@ sequences shorter than segment length will be ignored", ArgvParser::OptionRequir
 
     cmd.defineOption("filterLengthMismatches", "Filter mappings where the ratio of reference/query mapped lengths disagrees with the ANI threshold");
 
+    cmd.defineOption("lowerTriangular", "Only map sequence i to sequence j if i > j.");
+
     cmd.defineOption("skipSelf", "skip self mappings when the query and target name is the same (for all-vs-all mode)");
     cmd.defineOptionAlternative("skipSelf", "X");
 
@@ -313,6 +315,13 @@ sequences shorter than segment length will be ignored", ArgvParser::OptionRequir
       parameters.querySequences = parameters.refSequences;
     }
     str.clear();
+
+    if (cmd.foundOption("lowerTriangular"))
+    {
+        parameters.lower_triangular = true;
+    } else {
+        parameters.lower_triangular = false;
+    }
 
     if (cmd.foundOption("skipSelf"))
     {

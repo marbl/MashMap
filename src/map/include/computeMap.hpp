@@ -401,23 +401,6 @@ namespace skch
 
       /**
        * @brief               helper to main mapping function
-       * @details             filters long-to-short mappings if we're in an all-vs-all mode
-       * @param[in]   input   mappings
-       * @return              void
-       */
-      void filterSelfingLongToShorts(MappingResultsVector_t &readMappings)
-      {
-          if (param.skip_self || param.skip_prefix) {
-              readMappings.erase(
-                  std::remove_if(readMappings.begin(),
-                                 readMappings.end(),
-                                 [&](MappingResult &e){ return e.selfMapFilter == true; }),
-                  readMappings.end());
-          }
-      }
-
-      /**
-       * @brief               helper to main mapping function
        * @details             filters mappings whose identity and query/ref length don't agree
        * @param[in]   input   mappings
        * @return              void
@@ -669,9 +652,6 @@ namespace skch
 
         std::swap(output->readMappings, unfilteredMappings);
 
-        // remove self-mode don't-maps
-        this->filterSelfingLongToShorts(output->readMappings);
-        
         // remove alignments where the ratio between query and target length is < our identity threshold
         if (param.filterLengthMismatches)
         {
@@ -862,11 +842,9 @@ namespace skch
           {
             const IP_const_iterator ip_it = pq.front().it;
             const auto& ref = this->refSketch.metadata[ip_it->seqId];
-            if ((!param.skip_prefix && !param.skip_self)
-                || (
-                  //(Q.fullLen <= ref.len) &&
-                  ((param.skip_self && Q.seqName != ref.name)
-                      || (param.skip_prefix && this->refIdGroup[ip_it->seqId] != Q.refGroup)))
+            if ((!param.skip_self || Q.seqName != ref.name)
+                && (!param.skip_prefix || this->refIdGroup[ip_it->seqId] != Q.refGroup)
+                && (!param.lower_triangular || Q.seqCounter > ip_it->seqId)
             ) {
               intervalPoints.push_back(*ip_it);
             }
