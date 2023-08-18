@@ -1,4 +1,4 @@
-name: Build
+name: Build and test mapping coverage
 
 on:
   push:
@@ -12,7 +12,7 @@ on:
 
 env:
   # Customize the CMake build type here (Release, Debug, RelWithDebInfo, etc.)
-  BUILD_TYPE: RelWithDebInfo
+  BUILD_TYPE: DEBUG
 
 jobs:
   linux:
@@ -38,31 +38,37 @@ jobs:
         sudo apt install build-essential manpages-dev software-properties-common
         sudo add-apt-repository ppa:ubuntu-toolchain-r/test
         sudo apt update && sudo apt install ${{ matrix.compiler.CC }} ${{ matrix.compiler.CXX }}
-        sudo apt install libhts-dev
-        sudo apt install libjemalloc-dev
-        cmake --version
-    
-
-    - name: Configure CMake
-      env:
-        CC: ${{ matrix.compiler.CC }}
-        CXX: ${{ matrix.compiler.CXX }}
-      # Configure CMake in a 'build' subdirectory. `CMAKE_BUILD_TYPE` is only required if you are using a single-configuration generator such as make.
-      # See https://cmake.org/cmake/help/latest/variable/CMAKE_BUILD_TYPE.html?highlight=cmake_build_type
-      run: cmake ./
-
+        sudo apt install 
+          libhts-dev 
+          libjemalloc-dev
+          libgsl-dev
+          zlib1g-dev
+          libhts-dev
+          samtools
+          bedtools
 
     - name: Build
       env:
           CC: ${{ matrix.compiler.CC }}
           CXX: ${{ matrix.compiler.CXX }}
       # Build your program with the given configuration
-      run: cmake -H. -Bbuild -DCMAKE_BUILD_TYPE=Release && cmake --build build -- 
+      run: cmake -H. -Bbuild -DCMAKE_BUILD_TYPE=${BUILD_TYPE} && cmake --build build -- 
       
-    - name: Run
+    - name: Basic version test
       env:
           CC: ${{ matrix.compiler.CC }}
           CXX: ${{ matrix.compiler.CXX }}
-      # Build your program with the given configuration
       run: build/bin/mashmap -v
+
+    - name: Test coverage
+      env:
+          CC: ${{ matrix.compiler.CC }}
+          CXX: ${{ matrix.compiler.CXX }}
+      run: |
+        ASAN_OPTIONS=detect_leaks=1:symbolize=1 LSAN_OPTIONS=verbosity=0:log_threads=1 build/bin/mashmap \
+          -r data/scerevisiae8.fa.gz
+          -q data/scerevisiae8.fa.gz
+          --pi 95 -n 1 -Y '#' 
+          -o scerevisiae8.paf; 
+        scripts/test.sh data/scerevisiae8.fa.gz.fai scerevisiae8.paf 0.92
 
