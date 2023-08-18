@@ -39,7 +39,7 @@ jobs:
         - sudo add-apt-repository ppa:ubuntu-toolchain-r/test
         - sudo apt update && sudo apt install
     - name: Install Requirements
-     run: sudo apt install  -y
+      run: sudo apt install  -y
           ${{ matrix.compiler.CC }} 
           ${{ matrix.compiler.CXX }}
           libhts-dev 
