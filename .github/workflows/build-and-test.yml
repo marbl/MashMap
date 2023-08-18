@@ -63,15 +63,13 @@ jobs:
           CXX: ${{ matrix.compiler.CXX }}
       run: build/bin/mashmap -v
 
-    - name: Test coverage
-      env:
-          CC: ${{ matrix.compiler.CC }}
-          CXX: ${{ matrix.compiler.CXX }}
-      run: |
-        ASAN_OPTIONS=detect_leaks=1:symbolize=1 LSAN_OPTIONS=verbosity=0:log_threads=1 build/bin/mashmap \
+    - name: Align yeast genomes
+      run: ASAN_OPTIONS=detect_leaks=1:symbolize=1 LSAN_OPTIONS=verbosity=0:log_threads=1 build/bin/mashmap 
           -r data/scerevisiae8.fa.gz
           -q data/scerevisiae8.fa.gz
           --pi 95 -n 1 -Y '#' 
+          --threads $(nproc --all)
           -o scerevisiae8.paf; 
-        scripts/test.sh data/scerevisiae8.fa.gz.fai scerevisiae8.paf 0.92
+    - name: Test yeast coverage
+      run: scripts/test.sh data/scerevisiae8.fa.gz.fai scerevisiae8.paf 0.92
 
