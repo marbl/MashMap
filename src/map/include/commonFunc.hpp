@@ -19,7 +19,6 @@
 
 //Own includes
 #include "map/include/map_parameters.hpp"
-#include "common/rkmh.hpp"
 
 //External includes
 #include "common/murmur3.h"
@@ -72,8 +71,25 @@ namespace skch {
                 dest[length - i - 1] = base;
             }
         }
+        // Crazy hack char table to test for canonical bases
+    constexpr int valid_dna[127] = {
+        1,
+        1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+        1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+        1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+        1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+        1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+        1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+        1, 1, 1, 1, 0, 1, 0, 1, 1, 1,
+        0, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+        1, 1, 1, 0, 1, 1, 1, 1, 1, 1,
+        1, 1, 1, 1, 1, 1, 0, 1, 0, 1,
+        1, 1, 0, 1, 1, 1, 1, 1, 1, 1,
+        1, 1, 1, 1, 1, 0, 1, 1, 1, 1,
+        1, 1, 1, 1, 1, 1
+    };
 
-        /**
+    /**
      * @brief               convert DNA or AA alphabets to upper case, converting non-canonical DNA bases to N
      * @param[in]   seq     pointer to input sequence
      * @param[in]   len     length of input sequence
@@ -84,7 +100,7 @@ namespace skch {
                     seq[i] -= 32;
                 }
 
-                if (rkmh::valid_dna[seq[i]]) {
+                if (valid_dna[seq[i]]) {
                     seq[i] = 'N';
                 }
             }
