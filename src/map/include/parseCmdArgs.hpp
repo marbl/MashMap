@@ -225,11 +225,25 @@ sequences shorter than segment length will be ignored", ArgvParser::OptionRequir
     std::cerr << "[mashmap] Chaining gap max = " << parameters.chain_gap << std::endl;
     std::cerr << "[mashmap] Mappings per segment = " << parameters.numMappingsForSegment << std::endl;
     std::cerr << "[mashmap] Percentage identity threshold = " << 100 * parameters.percentageIdentity << "\%" << std::endl;
+
+    if (parameters.kmerComplexityThreshold > 0)
+    {
+      std::cerr << "[mashmap] Kmer complexity threshold = " << 100 * parameters.kmerComplexityThreshold << "\%" << std::endl;
+    }
+
     std::cerr << "[mashmap] " << (parameters.skip_self ? "Skip" : "Do not skip") << " self mappings" << std::endl;
+
+    if (parameters.skip_prefix) 
+    {
+      std::cerr << "[mashmap] " << "Skipping sequences containing the same prefix based on the delimiter \""
+        << parameters.prefix_delim << "\"" << std::endl;
+    }
+
     if (parameters.stage1_topANI_filter) 
       std::cerr << "[mashmap] " << "Hypergeometric filter w/ delta = " << parameters.ANIDiff << " and confidence " << parameters.ANIDiffConf << std::endl;
     else
       std::cerr << "[mashmap] " <<  "No hypergeometric filter" << std::endl;
+
     std::cerr << "[mashmap] Mapping output file = " << parameters.outFileName << std::endl;
     std::cerr << "[mashmap] Filter mode = " << parameters.filterMode << " (1 = map, 2 = one-to-one, 3 = none)" << std::endl;
     std::cerr << "[mashmap] Execution threads  = " << parameters.threads << std::endl;
