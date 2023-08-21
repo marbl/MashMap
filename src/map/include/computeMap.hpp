@@ -124,7 +124,7 @@ namespace skch
         param(p),
         refSketch(refsketch),
         processMappingResults(f),
-        sketchCutoffs(p.sketchSize + 1, 1),
+        sketchCutoffs(std::min<double>(p.sketchSize, skch::fixed::ss_table_max) + 1, 1),
         refIdGroup(refsketch.metadata.size())
     {
       if (p.stage1_topANI_filter) {
@@ -179,12 +179,12 @@ namespace skch
 
         float deltaANI = param.ANIDiff;
         float min_p = 1 - param.ANIDiffConf;
-        int ss = param.sketchSize;
+        int ss = std::min<double>(param.sketchSize, skch::fixed::ss_table_max);
 
         // Cache hg pmf results
         std::vector<std::vector<double>> sketchProbs(
-            param.sketchSize + 1,
-            std::vector<double>(param.sketchSize + 1.0)
+            ss + 1,
+            std::vector<double>(ss + 1.0)
         );
         for (auto ci = 0; ci <= ss; ci++) 
         {
@@ -203,9 +203,9 @@ namespace skch
 
             // yi_cutoff is minimum jaccard numerator required to be within deltaANI of ymax
             double yi_cutoff = deltaANI == 0 ? ymax : (std::floor(skch::Stat::md2j(
-                skch::Stat::j2md(ymax / param.sketchSize, param.kmerSize) + deltaANI, 
+                skch::Stat::j2md(ymax / ss, param.kmerSize) + deltaANI, 
                 param.kmerSize
-            ) * param.sketchSize));
+            ) * ss));
 
             // Pr Y_i < yi_cutoff
             //std::cerr << "CMF " << yi_cutoff - 1 << " " << ss << " " << ss-ci << " " << ci << std::endl;
@@ -225,7 +225,7 @@ namespace skch
         };
 
         // Helper vector for binary search
-        std::vector<int> ss_range(param.sketchSize+1);
+        std::vector<int> ss_range(ss+1);
         std::iota (ss_range.begin(), ss_range.end(), 0);
 
         for (auto cmax = 1; cmax <= ss; cmax++) 
@@ -944,7 +944,10 @@ namespace skch
             } else 
             {
               minimumHits = std::max(
-                  sketchCutoffs[std::min(bestIntersectionSize, Q.sketchSize)],
+                  sketchCutoffs[
+                    int(std::min(bestIntersectionSize, Q.sketchSize) 
+                      / std::max<double>(1, param.sketchSize / skch::fixed::ss_table_max))
+                  ],
                   minimumHits);
             }
           } 
