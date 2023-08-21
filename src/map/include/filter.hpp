@@ -31,6 +31,7 @@ namespace skch
      * @namespace skch::filter::query
      * @brief     filter routines (best for query sequence)
      */
+
     namespace query
     {
       //helper functions for executing plane sweep over query sequence
@@ -40,29 +41,29 @@ namespace skch
 
         Helper(MappingResultsVector_t &v) : vec(v) {}
 
-        double get_score(const int& x) { return vec[x].qlen() * vec[x].nucIdentity; }
+        double get_score(const int x) const {return vec[x].nucIdentity; }
 
         //Greater than comparison by score and begin position
         //used to define order in BST
-        bool operator ()(const int &x, const int &y) const {
+        bool operator ()(const int x, const int y) const {
 
           assert(x < vec.size());
           assert(y < vec.size());
 
-          auto x_score = vec[x].qlen() * vec[x].nucIdentity;
-          auto y_score = vec[y].qlen() * vec[y].nucIdentity;
+          auto x_score = get_score(x);
+          auto y_score = get_score(y);
 
           return std::tie(x_score, vec[x].queryStartPos, vec[x].refSeqId) > std::tie(y_score, vec[y].queryStartPos, vec[y].refSeqId);
         }
 
         //Greater than comparison by score
-        bool greater_score(const int &x, const int &y) {
+        bool greater_score(const int x, const int y) const {
 
           assert(x < vec.size());
           assert(y < vec.size());
 
-          auto x_score = vec[x].qlen() * vec[x].nucIdentity;
-          auto y_score = vec[y].qlen() * vec[y].nucIdentity;
+          auto x_score = get_score(x);
+          auto y_score = get_score(y);
 
           return x_score > y_score;
         }
@@ -123,7 +124,7 @@ namespace skch
           for(int i = 0; i < readMappings.size(); i++)
           {
             eventSchedule.emplace_back (readMappings[i].queryStartPos, event::BEGIN, i);
-            eventSchedule.emplace_back (readMappings[i].queryEndPos + 1, event::END, i);
+            eventSchedule.emplace_back (readMappings[i].queryEndPos, event::END, i);
           }
 
           std::sort(eventSchedule.begin(), eventSchedule.end());
@@ -183,7 +184,7 @@ namespace skch
 
           for(int i = 0; i < readMappings.size(); i++) {
               eventSchedule.emplace_back (readMappings[i].queryStartPos, obj.get_score(i), event::BEGIN, i);
-              eventSchedule.emplace_back (readMappings[i].queryEndPos + 1, 0, event::END, i); // end should not be preferred
+              eventSchedule.emplace_back (readMappings[i].queryEndPos, 0, event::END, i); // end should not be preferred
           }
 
           std::sort(eventSchedule.begin(), eventSchedule.end());
@@ -253,27 +254,29 @@ namespace skch
 
         Helper(MappingResultsVector_t &v) : vec(v) {}
 
+        double get_score(const int x) const {return vec[x].nucIdentity; }
+
         //Greater than comparison by score and begin position
         //used to define order in BST
-        bool operator ()(const int &x, const int &y) const {
+        bool operator ()(const int x, const int y) const {
 
           assert(x < vec.size());
           assert(y < vec.size());
 
-          auto x_score = vec[x].rlen() * vec[x].nucIdentity;
-          auto y_score = vec[y].rlen() * vec[y].nucIdentity;
+          auto x_score = get_score(x);
+          auto y_score = get_score(y);
 
           return std::tie(x_score, vec[x].refStartPos) > std::tie(y_score, vec[y].refStartPos);
         }
 
         //Greater than comparison by score
-        bool greater_score(const int &x, const int &y) {
+        bool greater_score(const int x, const int y) const {
 
           assert(x < vec.size());
           assert(y < vec.size());
 
-          auto x_score = vec[x].rlen() * vec[x].nucIdentity;
-          auto y_score = vec[y].rlen() * vec[y].nucIdentity;
+          auto x_score = get_score(x);
+          auto y_score = get_score(y);
 
           return x_score > y_score;
         }

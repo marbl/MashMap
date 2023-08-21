@@ -124,7 +124,7 @@ namespace skch
         param(p),
         refSketch(refsketch),
         processMappingResults(f),
-        sketchCutoffs(p.sketchSize + 1, 1),
+        sketchCutoffs(std::min<double>(p.sketchSize, skch::fixed::ss_table_max) + 1, 1),
         refIdGroup(refsketch.metadata.size())
     {
       if (p.stage1_topANI_filter) {
@@ -179,12 +179,12 @@ namespace skch
 
         float deltaANI = param.ANIDiff;
         float min_p = 1 - param.ANIDiffConf;
-        int ss = param.sketchSize;
+        int ss = std::min<double>(param.sketchSize, skch::fixed::ss_table_max);
 
         // Cache hg pmf results
         std::vector<std::vector<double>> sketchProbs(
-            param.sketchSize + 1,
-            std::vector<double>(param.sketchSize + 1.0)
+            ss + 1,
+            std::vector<double>(ss + 1.0)
         );
         for (auto ci = 0; ci <= ss; ci++) 
         {
@@ -203,9 +203,9 @@ namespace skch
 
             // yi_cutoff is minimum jaccard numerator required to be within deltaANI of ymax
             double yi_cutoff = deltaANI == 0 ? ymax : (std::floor(skch::Stat::md2j(
-                skch::Stat::j2md(ymax / param.sketchSize, param.kmerSize) + deltaANI, 
+                skch::Stat::j2md(ymax / ss, param.kmerSize) + deltaANI, 
                 param.kmerSize
-            ) * param.sketchSize));
+            ) * ss));
 
             // Pr Y_i < yi_cutoff
             //std::cerr << "CMF " << yi_cutoff - 1 << " " << ss << " " << ss-ci << " " << ci << std::endl;
@@ -225,7 +225,7 @@ namespace skch
         };
 
         // Helper vector for binary search
-        std::vector<int> ss_range(param.sketchSize+1);
+        std::vector<int> ss_range(ss+1);
         std::iota (ss_range.begin(), ss_range.end(), 0);
 
         for (auto cmax = 1; cmax <= ss; cmax++) 
@@ -293,7 +293,7 @@ namespace skch
                 // if not, warn that this is expensive
                 std::cerr << "[mashmap::skch::Map::mapQuery] WARNING, no .fai index found for " << fileName << ", reading the file to sum sequence length (slow)" << std::endl;
                 seqiter::for_each_seq_in_file(
-                    fileName,
+                    fileName, {}, "",
                     [&](const std::string& seq_name,
                         const std::string& seq) {
                         ++total_seqs;
@@ -312,7 +312,7 @@ namespace skch
 #endif
 
             seqiter::for_each_seq_in_file(
-                fileName,
+                fileName, {}, "",
                 [&](const std::string& seq_name,
                     const std::string& seq) {
                     // todo: offset_t is an 32-bit integer, which could cause problems
@@ -397,23 +397,6 @@ namespace skch
                                      && e.n_merged < min_count;
                              }),
               readMappings.end());
-      }
-
-      /**
-       * @brief               helper to main mapping function
-       * @details             filters long-to-short mappings if we're in an all-vs-all mode
-       * @param[in]   input   mappings
-       * @return              void
-       */
-      void filterSelfingLongToShorts(MappingResultsVector_t &readMappings)
-      {
-          if (param.skip_self || param.skip_prefix) {
-              readMappings.erase(
-                  std::remove_if(readMappings.begin(),
-                                 readMappings.end(),
-                                 [&](MappingResult &e){ return e.selfMapFilter == true; }),
-                  readMappings.end());
-          }
       }
 
       /**
@@ -555,7 +538,7 @@ namespace skch
         MappingResultsVector_t unfilteredMappings;
         int refGroup = this->getRefGroup(input->seqName);
 
-        if(! param.split || input->len <= param.segLength || input->len <= param.block_length)
+        if(! param.split || input->len <= param.segLength)
         {
           QueryMetaData <MinVec_Type> Q;
           Q.seq = &(input->seq)[0u];
@@ -654,11 +637,9 @@ namespace skch
             // hardcore merge using the chain gap
             mergeMappingsInRange(unfilteredMappings, param.chain_gap);
             //mergeMappings(unfilteredMappings);
-            if (input->len >= param.block_length) 
-            {
-              // remove short chains that didn't exceed block length
-              filterWeakMappings(unfilteredMappings, std::floor(param.block_length / param.segLength));
-            }
+
+            // remove short chains that didn't exceed block length
+            filterWeakMappings(unfilteredMappings, std::floor(param.block_length / param.segLength));
           }
         }
 
@@ -671,9 +652,6 @@ namespace skch
 
         std::swap(output->readMappings, unfilteredMappings);
 
-        // remove self-mode don't-maps
-        this->filterSelfingLongToShorts(output->readMappings);
-        
         // remove alignments where the ratio between query and target length is < our identity threshold
         if (param.filterLengthMismatches)
         {
@@ -864,10 +842,9 @@ namespace skch
           {
             const IP_const_iterator ip_it = pq.front().it;
             const auto& ref = this->refSketch.metadata[ip_it->seqId];
-            if ((!param.skip_prefix && !param.skip_self)
-                || ((Q.fullLen <= ref.len)
-                  && ((param.skip_self && Q.seqName != ref.name)
-                      || (param.skip_prefix && this->refIdGroup[ip_it->seqId] != Q.refGroup)))
+            if ((!param.skip_self || Q.seqName != ref.name)
+                && (!param.skip_prefix || this->refIdGroup[ip_it->seqId] != Q.refGroup)
+                && (!param.lower_triangular || Q.seqCounter > ip_it->seqId)
             ) {
               intervalPoints.push_back(*ip_it);
             }
@@ -967,7 +944,10 @@ namespace skch
             } else 
             {
               minimumHits = std::max(
-                  sketchCutoffs[std::min(bestIntersectionSize, Q.sketchSize)],
+                  sketchCutoffs[
+                    int(std::min(bestIntersectionSize, Q.sketchSize) 
+                      / std::max<double>(1, param.sketchSize / skch::fixed::ss_table_max))
+                  ],
                   minimumHits);
             }
           } 
@@ -991,7 +971,8 @@ namespace skch
           int prevPrevOverlap = 0;
 
           // Need to keep track of two positions, as the previous one will be the local optimum
-          SeqCoord prevPos, currentPos;
+          SeqCoord prevPos;
+          SeqCoord currentPos{leadingIt->seqId, leadingIt->pos};
 
 
           while (leadingIt != ip_end)
@@ -1106,7 +1087,7 @@ namespace skch
           getSeedHits(Q);
 
           //Catch all NNNNNN case
-          if (Q.sketchSize == 0) {
+          if (Q.sketchSize == 0 || Q.kmerComplexity < param.kmerComplexityThreshold) {
             return;
           }
 
@@ -1191,9 +1172,8 @@ namespace skch
               // if we are in all-vs-all mode, it isn't a self-mapping,
               // and if we are self-mapping, the query is shorter than the target
               const auto& ref = this->refSketch.metadata[l2.seqId];
-              if((Q.kmerComplexity >= param.kmerComplexityThreshold)
-                  && ((param.keep_low_pct_id && nucIdentityUpperBound >= param.percentageIdentity)
-                  || nucIdentity >= param.percentageIdentity))
+              if((param.keep_low_pct_id && nucIdentityUpperBound >= param.percentageIdentity)
+                  || nucIdentity >= param.percentageIdentity)
               {
                 //Track the best jaccard numerator
                 bestJaccardNumerator = std::max<double>(bestJaccardNumerator, l2.sharedSketchSize);

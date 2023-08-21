@@ -102,15 +102,20 @@ sequences shorter than segment length will be ignored", ArgvParser::OptionRequir
 
     cmd.defineOption("noHgFilter", "Don't use the hypergeometric filtering and instead use the MashMap2 first pass filtering.");
     cmd.defineOption("hgFilterAniDiff", "Filter out mappings unlikely to be this ANI less than the best mapping [default: 0.0]", ArgvParser::OptionRequiresValue);
-    cmd.defineOption("hgFilterConf", "Confidence value for the hypergeometric filtering [default: 0.999]", ArgvParser::OptionRequiresValue);
+    cmd.defineOption("hgFilterConf", "Confidence value for the hypergeometric filtering [default: 99.9%]", ArgvParser::OptionRequiresValue);
 
     cmd.defineOption("filterLengthMismatches", "Filter mappings where the ratio of reference/query mapped lengths disagrees with the ANI threshold");
+
+    cmd.defineOption("lowerTriangular", "Only map sequence i to sequence j if i > j.");
 
     cmd.defineOption("skipSelf", "skip self mappings when the query and target name is the same (for all-vs-all mode)");
     cmd.defineOptionAlternative("skipSelf", "X");
 
     cmd.defineOption("skipPrefix", "skip mappings when the query and target have the same prefix before the last occurrence of the given character C", ArgvParser::OptionRequiresValue);
     cmd.defineOptionAlternative("skipPrefix", "Y");
+
+    cmd.defineOption("targetPrefix", "Only index reference sequences beginning with this prefix", ArgvParser::OptionRequiresValue);
+    cmd.defineOption("targetList", "file containing list of target sequence names", ArgvParser::OptionRequiresValue);
 
     cmd.defineOption("sparsifyMappings", "keep this fraction of mappings", ArgvParser::OptionRequiresValue);
     cmd.defineOptionAlternative("sparsifyMappings", "x");
@@ -220,11 +225,25 @@ sequences shorter than segment length will be ignored", ArgvParser::OptionRequir
     std::cerr << "[mashmap] Chaining gap max = " << parameters.chain_gap << std::endl;
     std::cerr << "[mashmap] Mappings per segment = " << parameters.numMappingsForSegment << std::endl;
     std::cerr << "[mashmap] Percentage identity threshold = " << 100 * parameters.percentageIdentity << "\%" << std::endl;
+
+    if (parameters.kmerComplexityThreshold > 0)
+    {
+      std::cerr << "[mashmap] Kmer complexity threshold = " << 100 * parameters.kmerComplexityThreshold << "\%" << std::endl;
+    }
+
     std::cerr << "[mashmap] " << (parameters.skip_self ? "Skip" : "Do not skip") << " self mappings" << std::endl;
+
+    if (parameters.skip_prefix) 
+    {
+      std::cerr << "[mashmap] " << "Skipping sequences containing the same prefix based on the delimiter \""
+        << parameters.prefix_delim << "\"" << std::endl;
+    }
+
     if (parameters.stage1_topANI_filter) 
       std::cerr << "[mashmap] " << "Hypergeometric filter w/ delta = " << parameters.ANIDiff << " and confidence " << parameters.ANIDiffConf << std::endl;
     else
       std::cerr << "[mashmap] " <<  "No hypergeometric filter" << std::endl;
+
     std::cerr << "[mashmap] Mapping output file = " << parameters.outFileName << std::endl;
     std::cerr << "[mashmap] Filter mode = " << parameters.filterMode << " (1 = map, 2 = one-to-one, 3 = none)" << std::endl;
     std::cerr << "[mashmap] Execution threads  = " << parameters.threads << std::endl;
@@ -311,6 +330,13 @@ sequences shorter than segment length will be ignored", ArgvParser::OptionRequir
     }
     str.clear();
 
+    if (cmd.foundOption("lowerTriangular"))
+    {
+        parameters.lower_triangular = true;
+    } else {
+        parameters.lower_triangular = false;
+    }
+
     if (cmd.foundOption("skipSelf"))
     {
         parameters.skip_self = true;
@@ -328,8 +354,21 @@ sequences shorter than segment length will be ignored", ArgvParser::OptionRequir
       parameters.skip_prefix = false;
       parameters.prefix_delim = '\0';
     }
-
     str.clear();
+
+    if (cmd.foundOption("targetList"))
+    {
+      str << cmd.optionValue("targetList");
+      str >> parameters.target_list;
+    }
+    str.clear();
+
+    if (cmd.foundOption("targetPrefix"))
+    {
+      str << cmd.optionValue("targetPrefix");
+      str >> parameters.target_prefix;
+    }
+
 
     if (cmd.foundOption("saveIndex")) {
         str << cmd.optionValue("saveIndex");
@@ -457,7 +496,7 @@ sequences shorter than segment length will be ignored", ArgvParser::OptionRequir
     }
 
     if (cmd.foundOption("kmerThreshold")) {
-        str << cmd.foundOption("kmerThreshold");
+        str << cmd.optionValue("kmerThreshold");
         str >> parameters.kmer_pct_threshold;
     } else {
         parameters.kmer_pct_threshold = 0.001; // in percent! so we keep 99.999% of kmers
@@ -525,11 +564,11 @@ sequences shorter than segment length will be ignored", ArgvParser::OptionRequir
     if (cmd.foundOption("hgFilterAniDiff")) {
       str << cmd.optionValue("hgFilterAniDiff");
       str >> parameters.ANIDiff;
-      parameters.ANIDiff /= 100;
       if (parameters.ANIDiff < 0 ||  parameters.ANIDiff > 100) {
         std::cerr << "ERROR, skch::parseandSave, ANI difference must be between 0 and 100" << std::endl;
         exit(1);
       }
+      parameters.ANIDiff /= 100;
     } else {
       parameters.ANIDiff = skch::fixed::ANIDiff;
     }
@@ -538,11 +577,11 @@ sequences shorter than segment length will be ignored", ArgvParser::OptionRequir
     if (cmd.foundOption("hgFilterConf")) {
       str << cmd.optionValue("hgFilterConf");
       str >> parameters.ANIDiffConf;
-      parameters.ANIDiffConf /= 100;
-      if (parameters.ANIDiffConf < 0 ||  parameters.ANIDiffConf > 1) {
-        std::cerr << "ERROR, skch::parseandSave, hypergeometric confidence must be between 0 and 1" << std::endl;
+      if (parameters.ANIDiffConf < 0 ||  parameters.ANIDiffConf > 100) {
+        std::cerr << "ERROR, skch::parseandSave, hypergeometric confidence must be between 0 and 100" << std::endl;
         exit(1);
       }
+      parameters.ANIDiffConf /= 100;
     } else {
       parameters.ANIDiffConf = skch::fixed::ANIDiffConf;
     }

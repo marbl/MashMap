@@ -12,6 +12,7 @@
 namespace stdfs = std::filesystem;
 
 #include "common/ALeS.hpp"
+#include "base_types.hpp"
 
 namespace skch
 {
@@ -32,12 +33,12 @@ struct Parameters
 {
     int kmerSize;                                     //kmer size for sketching
     float kmer_pct_threshold;                         //use only kmers not in the top kmer_pct_threshold %-ile
-    int64_t segLength;                                //For split mapping case, this represents the fragment length
+    offset_t segLength;                                //For split mapping case, this represents the fragment length
                                                       //for noSplit, it represents minimum read length to multimap
-    int64_t block_length;                             // minimum (potentially merged) block to keep if we aren't split
-    int64_t chain_gap;                                // max distance for 2d range union-find mapping chaining
+    offset_t block_length;                             // minimum (potentially merged) block to keep if we aren't split
+    offset_t chain_gap;                                // max distance for 2d range union-find mapping chaining
     int alphabetSize;                                 //alphabet size
-    uint64_t referenceSize;                           //Approximate reference size
+    offset_t referenceSize;                           //Approximate reference size
     float percentageIdentity;                         //user defined threshold for good similarity
     bool stage2_full_scan;                            //Instead of using the best intersection for a given candidate region, compute the minhash for every position in the window
     bool stage1_topANI_filter;                        //Use the ANI filter in stage 1
@@ -53,9 +54,12 @@ struct Parameters
     stdfs::path saveIndexFilename;                    //output file name of index
     stdfs::path loadIndexFilename;                    //input file name of index
     bool split;                                       //Split read mapping (done if this is true)
+    bool lower_triangular;                            // set to true if we should filter out half of the mappings
     bool skip_self;                                   //skip self mappings
     bool skip_prefix;                                 //skip mappings to sequences with the same prefix
     char prefix_delim;                                //the prefix delimiter
+    std::string target_list;                          //file containing list of target sequences
+    std::string target_prefix;                        //prefix for target sequences to use
     bool mergeMappings;                               //if we should merge consecutive segment mappings
     bool keep_low_pct_id;                             //true if we should keep mappings whose estimated identity < percentageIdentity
     bool report_ANI_percentage;                       //true if ANI should be in [0,100] as opposed to [0,1] (this is necessary for wfmash
@@ -88,12 +92,13 @@ namespace fixed
 //int max_best_mappings_per_position = 25;          // At a particular position, if algorithm finds more than a certain best
 //mappings, it doesn't mark them as best anymore
 
+double ss_table_max = 1000.0;                       // Maximum size of dp table for filtering
 double pval_cutoff = 1e-3;                          // p-value cutoff for determining window size
 float confidence_interval = 0.95;                   // Confidence interval to relax jaccard cutoff for mapping (0-1)
 float percentage_identity = 0.85;                   // Percent identity in the mapping step
 float ANIDiff = 0.0;                                // Stage 1 ANI diff threshold
 float ANIDiffConf = 0.999;                          // ANI diff confidence
-std::string VERSION = "3.0.6";                      // Version of MashMap
+std::string VERSION = "3.1.0";                      // Version of MashMap
 }
 }
 
