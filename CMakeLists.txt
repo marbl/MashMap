@@ -26,6 +26,8 @@ endif()
 option(USE_HTSLIB "Compile with htslib for --targetPrefix and --targetList" OFF)
 if (USE_HTSLIB)
   add_definitions(-DUSE_HTSLIB)
+  find_package(PkgConfig)
+  pkg_check_modules(HTSLIB REQUIRED IMPORTED_TARGET htslib)
 endif()
 option(PROFILE             "Prevent inlining and add debug symbols" OFF)
 
@@ -73,13 +75,17 @@ add_executable(mashmap-align
 target_include_directories(mashmap PRIVATE
   src
   src/common
-  )
+)
 
 target_include_directories(mashmap-align PRIVATE
   src
   src/common
-  )
+)
 
+if (USE_HTSLIB)
+  target_link_libraries(mashmap PkgConfig::HTSLIB)
+  target_link_libraries(mashmap-align PkgConfig::HTSLIB)
+endif()
 
 target_link_libraries(mashmap
   gsl
@@ -90,9 +96,6 @@ target_link_libraries(mashmap
   z
   #assert
 )
-if (USE_HTSLIB)
-  target_link_libraries(mashmap hts)
-endif()
 
 target_link_libraries(mashmap-align
   gsl
@@ -103,9 +106,6 @@ target_link_libraries(mashmap-align
   z
   #assert
 )
-if (USE_HTSLIB)
-  target_link_libraries(mashmap-align hts)
-endif()
 
 install(TARGETS mashmap DESTINATION bin)
 install(TARGETS mashmap-align DESTINATION bin)
