@@ -23,6 +23,10 @@ option(LARGE_CONTIG "Use 64-bit integers instead of 32 bit for sequence coordina
 if (LARGE_CONTIG)
   add_definitions(-DLARGE_CONTIG)
 endif()
+option(USE_HTSLIB "Compile with htslib for --targetPrefix and --targetList" OFF)
+if (USE_HTSLIB)
+  add_definitions(-DUSE_HTSLIB)
+endif()
 option(PROFILE             "Prevent inlining and add debug symbols" OFF)
 
 if (${CMAKE_BUILD_TYPE} MATCHES Release)
@@ -82,22 +86,26 @@ target_link_libraries(mashmap
   gslcblas
   m
   pthread
-  hts
   #rt
   z
   #assert
 )
+if (USE_HTSLIB)
+  target_link_libraries(mashmap hts)
+endif()
 
 target_link_libraries(mashmap-align
   gsl
   gslcblas
   m
   pthread
-  hts
   #rt
   z
   #assert
 )
+if (USE_HTSLIB)
+  target_link_libraries(mashmap-align hts)
+endif()
 
 install(TARGETS mashmap DESTINATION bin)
 install(TARGETS mashmap-align DESTINATION bin)

@@ -5,7 +5,9 @@
 #include <cassert>
 #include <unordered_set>
 #include "gzstream.h"
+#ifdef USE_HTSLIB
 #include <htslib/faidx.h>
+#endif
 
 namespace seqiter {
 
@@ -21,6 +23,7 @@ void for_each_seq_in_file(
     const std::string& keep_prefix,
     const std::function<void(const std::string&, const std::string&)>& func) {
 
+#ifdef USE_HTSLIB
     if ((!keep_seq.empty() || !keep_prefix.empty())
           && fai_index_exists(filename)) {
         // Use index
@@ -55,7 +58,9 @@ void for_each_seq_in_file(
             }
         }
         fai_destroy(faid); // Free FAI index
-    } else {
+    } else 
+#endif
+    {
         // no index available
         // detect file type
         bool input_is_fasta = false;
