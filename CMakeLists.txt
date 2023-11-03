@@ -18,6 +18,7 @@ endif()
 
 message(STATUS "CMAKE_BUILD_TYPE: ${CMAKE_BUILD_TYPE}")
 
+option(SKIP_VERSION_FILE "Do not create src/mashmap_git_version.hpp" OFF)
 option(OPTIMIZE_FOR_NATIVE "Build with -march=native" ON)
 option(LARGE_CONTIG "Use 64-bit integers instead of 32 bit for sequence coordinates" OFF)
 if (LARGE_CONTIG)
@@ -111,5 +112,7 @@ install(TARGETS mashmap DESTINATION bin)
 install(TARGETS mashmap-align DESTINATION bin)
 
 # version stuff
-file(MAKE_DIRECTORY ${CMAKE_SOURCE_DIR}/include)
-execute_process(COMMAND bash ${CMAKE_SOURCE_DIR}/scripts/generate_git_version.sh ${CMAKE_SOURCE_DIR}/src)
+if (NOT SKIP_VERSION_FILE)
+  file(MAKE_DIRECTORY ${CMAKE_SOURCE_DIR}/include)
+  execute_process(COMMAND bash ${CMAKE_SOURCE_DIR}/scripts/generate_git_version.sh ${CMAKE_SOURCE_DIR}/src)
+endif ()
