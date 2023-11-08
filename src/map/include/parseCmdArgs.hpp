@@ -71,6 +71,9 @@ sequences shorter than segment length will be ignored", ArgvParser::OptionRequir
     cmd.defineOption("numMappingsForSegment", "number of mappings to retain for each segment [default: 1]", ArgvParser::OptionRequiresValue);
     cmd.defineOptionAlternative("numMappingsForSegment", "n");
 
+    cmd.defineOption("dropRand", "Drops lowest scoring mappings w/ the same score at random until there are only n mappings to report [disabled by default]");
+    cmd.defineOptionAlternative("dropRand", "d");
+
     cmd.defineOption("numMappingsForShortSeq", "number of mappings to retain for each sequence shorter than segment length [default: 1]", ArgvParser::OptionRequiresValue);
     
     cmd.defineOption("saveIndex", "Prefix of index files to save. PREFIX.map and PREFIX.index files will be created", ArgvParser::OptionRequiresValue);
@@ -493,6 +496,13 @@ sequences shorter than segment length will be ignored", ArgvParser::OptionRequir
         parameters.keep_low_pct_id = false;
     } else {
         parameters.keep_low_pct_id = true;
+    }
+    
+    if (cmd.foundOption("dropRand"))
+    {
+        parameters.dropRand = true;
+    } else {
+        parameters.dropRand = false;
     }
 
     if (cmd.foundOption("kmerThreshold")) {

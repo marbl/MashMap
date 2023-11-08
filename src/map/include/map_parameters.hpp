@@ -47,6 +47,7 @@ struct Parameters
     int filterMode;                                   //filtering mode in mashmap
     uint32_t numMappingsForSegment;                   //how many mappings to retain for each segment
     uint32_t numMappingsForShortSequence;             //how many secondary alignments we keep for reads < segLength
+    bool dropRand;                                                  //drop mappings w/ same score until only numMappingsForSegment remain
     int threads;                                      //execution thread count
     std::vector<std::string> refSequences;            //reference sequence(s)
     std::vector<std::string> querySequences;          //query sequence(s)

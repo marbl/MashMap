@@ -498,7 +498,7 @@ namespace skch
             std::move(subrange_begin, subrange_end, tmpMappings.begin());
             std::sort(tmpMappings.begin(), tmpMappings.end(), [](const auto& a, const auto& b) 
                 { return std::tie(a.queryStartPos, a.refSeqId, a.refStartPos) < std::tie(b.queryStartPos, b.refSeqId, b.refStartPos); });
-            skch::Filter::query::filterMappings(tmpMappings, n_mappings);
+            skch::Filter::query::filterMappings(tmpMappings, n_mappings, param.dropRand);
             std::move(tmpMappings.begin(), tmpMappings.end(), std::back_inserter(filteredMappings));
             subrange_begin = subrange_end;
           }

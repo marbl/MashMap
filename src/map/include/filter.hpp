@@ -41,7 +41,7 @@ namespace skch
 
         Helper(MappingResultsVector_t &v) : vec(v) {}
 
-        double get_score(const int x) const {return vec[x].nucIdentity; }
+        double get_score(const int x) const {return vec[x].nucIdentity * log(vec[x].blockLength) ; }
 
         //Greater than comparison by score and begin position
         //used to define order in BST
@@ -74,7 +74,7 @@ namespace skch
          * @param[in/out]   L             container with mappings
          */
         template <typename Type>
-        inline void markGood(Type &L, int secondaryToKeep)
+        inline void markGood(Type &L, int secondaryToKeep, bool dropRand)
           {
             //first segment in the set order
             auto beg = L.begin();
@@ -91,6 +91,38 @@ namespace skch
                 vec[*it].discard = 0;
                 ++kept;
             }
+
+            // check for the case where there are multiple best mappings > secondaryToKeep
+            // which have the same score
+            // we will hash the mapping struct and keep the one with the secondaryToKeep with the lowest hash value
+            if (kept > secondaryToKeep && dropRand) 
+            {
+              // we will use hashes of the mapping structs to break ties
+              // first we'll make a vector of the mappings including the hashes
+              std::vector<std::tuple<double, size_t, MappingResult*>> score_and_hash; // The tuple is (score, hash, pointer to the mapping)
+              for(auto it = L.begin(); it != L.end(); it++)
+              {
+                  if(vec[*it].discard == 0)
+                  {
+                      score_and_hash.emplace_back(get_score(*it), vec[*it].hash(), &vec[*it]);
+                  }
+              }
+              // now we'll sort the vector by score and hash
+              std::sort(score_and_hash.begin(), score_and_hash.end(), std::greater{});
+              // reset kept counter
+              kept = 0;
+              for (auto& x : score_and_hash) {
+                  std::get<2>(x)->discard = 1;
+              }
+              // now we mark the best to keep
+              for (auto& x : score_and_hash) {
+                  if (kept > secondaryToKeep) {
+                      break;
+                  }
+                  std::get<2>(x)->discard = 0;
+                  ++kept;
+              }
+            }
           }
       };
 
@@ -100,7 +132,7 @@ namespace skch
        * @param[in/out] readMappings  Mappings computed by Mashmap
        */
       template <typename VecIn>
-      void liFilterAlgorithm(VecIn &readMappings, int secondaryToKeep)
+      void liFilterAlgorithm(VecIn &readMappings, int secondaryToKeep, bool dropRand)
         {
           if(readMappings.size() <= 1)
             return;
@@ -148,7 +180,7 @@ namespace skch
                                     });
 
             //mark mappings as good
-            obj.markGood(bst, secondaryToKeep);
+            obj.markGood(bst, secondaryToKeep, dropRand);
 
             it = it2;
           }
@@ -218,14 +250,17 @@ namespace skch
         }
 
       /**
-       * @brief                       filter mappings (best for query sequence)
-       * @param[in/out] readMappings  Mappings computed by Mashmap (post merge step)
+       * @brief                          filter mappings (best for query sequence)
+       * @param[in/out] readMappings     Mappings computed by Mashmap (post merge step)
+       * @param[in]     secondaryToKeep  How many mappings in addition to the best to keep
+       * @param[in]     dropRand         If multiple mappings have the same score, drop randomly
+       *                                 until we only have secondaryToKeep secondary mappings
        */
       template <typename VecIn>
-      void filterMappings(VecIn &readMappings, uint16_t secondaryToKeep)
+      void filterMappings(VecIn &readMappings, uint16_t secondaryToKeep, bool dropRand)
       {
           //Apply the main filtering algorithm to ensure the best mappings across complete axis
-          liFilterAlgorithm(readMappings, secondaryToKeep);
+          liFilterAlgorithm(readMappings, secondaryToKeep, dropRand);
       }
 
      /**
@@ -254,7 +289,7 @@ namespace skch
 
         Helper(MappingResultsVector_t &v) : vec(v) {}
 
-        double get_score(const int x) const {return vec[x].nucIdentity; }
+        double get_score(const int x) const {return vec[x].nucIdentity * log(vec[x].blockLength) ; }
 
         //Greater than comparison by score and begin position
         //used to define order in BST
