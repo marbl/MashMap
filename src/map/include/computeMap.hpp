@@ -1638,6 +1638,12 @@ namespace skch
                   ) / it->n_merged; // this would scale directly by the number of mappings in the chain
 
 
+              //Mean kmer complexity of all mappings in the chain
+              it->kmerComplexity = ( std::accumulate(
+                                      it, it_end, 0.0,
+                                      [](double x, MappingResult &e){ return x + e.kmerComplexity; })
+                  ) / it->n_merged; // this would scale directly by the number of mappings in the chain
+
               //Discard other mappings of this chain
               std::for_each( std::next(it), it_end, [&](MappingResult &e){ e.discard = 1; });
 
