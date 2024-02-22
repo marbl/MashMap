@@ -1606,6 +1606,10 @@ namespace skch
           for (auto it = readMappings.begin(); it != readMappings.end(); it++) {
               std::vector<std::pair<double, uint64_t>> distances;
               for (auto it2 = std::next(it); it2 != readMappings.end(); it2++) {
+                  //If this mapping is for the same segment, skip
+                  if (it2->querySeqId == it->querySeqId && it2->queryStartPos == it2->queryStartPos) {
+                      continue;
+                  }
                   //If this mapping is too far from current mapping being evaluated, stop finding a merge
                   if (it2->refSeqId != it->refSeqId || it2->refStartPos > it->refEndPos + max_dist) {
                       break;
