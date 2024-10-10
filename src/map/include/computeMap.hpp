@@ -822,6 +822,7 @@ namespace skch
           {
             CommonFunc::addMinmers(Q.minmerTableQuery, Q.seq, Q.len, param.kmerSize, param.segLength, param.alphabetSize, param.sketchSize, Q.seqCounter);
             std::sort(Q.minmerTableQuery.begin(), Q.minmerTableQuery.end(), [](const MinmerInfo& l, const MinmerInfo& r) {return l.hash < r.hash;});
+            Q.minmerTableQuery.erase(std::unique(Q.minmerTableQuery.begin(), Q.minmerTableQuery.end()), Q.minmerTableQuery.end());
           }
           else
           {
