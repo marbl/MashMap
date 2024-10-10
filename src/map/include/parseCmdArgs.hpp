@@ -419,6 +419,10 @@ sequences shorter than segment length will be ignored", ArgvParser::OptionRequir
     if(cmd.foundOption("noSplit"))
     {
       parameters.split = false;
+      if (parameters.stage1_topANI_filter)
+        std::cerr << "WARNING, skch::parseandSave, hypergeometric filter is incompatible with --noSplit. Disabling hypergeometric filter." << std::endl;
+
+      parameters.stage1_topANI_filter = false;
     }
     else
       parameters.split = true;

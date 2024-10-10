@@ -818,7 +818,15 @@ namespace skch
         void getSeedHits(Q_Info &Q)
         {
           Q.minmerTableQuery.reserve(param.sketchSize + 1);
-          CommonFunc::sketchSequence(Q.minmerTableQuery, Q.seq, Q.len, param.kmerSize, param.alphabetSize, param.sketchSize, Q.seqCounter);
+          if (Q.len > 1.5 * param.segLength)
+          {
+            CommonFunc::addMinmers(Q.minmerTableQuery, Q.seq, Q.len, param.kmerSize, param.segLength, param.alphabetSize, param.sketchSize, Q.seqCounter);
+            std::sort(Q.minmerTableQuery.begin(), Q.minmerTableQuery.end(), [](const MinmerInfo& l, const MinmerInfo& r) {return l.hash < r.hash;});
+          }
+          else
+          {
+            CommonFunc::sketchSequence(Q.minmerTableQuery, Q.seq, Q.len, param.kmerSize, param.alphabetSize, param.sketchSize, Q.seqCounter);
+          }
           if(Q.minmerTableQuery.size() == 0) {
             Q.sketchSize = 0;
             return;
@@ -1278,7 +1286,7 @@ namespace skch
             Vec &l2_vec_out)
         {
 #ifdef DEBUG
-          //std::cerr << "INFO, skch::Map:computeL2MappedRegions, read id " << Q.seqName << "_" << Q.startPos << std::endl; 
+          std::cerr << "INFO, skch::Map:computeL2MappedRegions, read id " << Q.seqName << std::endl; 
 #endif
            
           auto& minmerIndex = refSketch.minmerIndex;
@@ -1324,13 +1332,13 @@ namespace skch
           {
             if (windowIt->wpos_end > candidateLocus.rangeStartPos) 
             {
+              slidingWindow.push_back(*windowIt);
+              std::push_heap(slidingWindow.begin(), slidingWindow.end(), heap_cmp);
               if (windowLen > 0) 
               {
                 hash_to_freq[windowIt->hash]++;
               }
               if (windowLen == 0 || hash_to_freq[windowIt->hash] == 1) {
-                slidingWindow.push_back(*windowIt);
-                std::push_heap(slidingWindow.begin(), slidingWindow.end(), heap_cmp);
                 slideMap.insert_minmer(*windowIt);
               }
             }
@@ -1351,20 +1359,20 @@ namespace skch
               if (windowLen == 0 || hash_to_freq[slidingWindow.front().hash] == 0) {
                 // Remove minmer from  sorted window
                 slideMap.delete_minmer(slidingWindow.front());
-                std::pop_heap(slidingWindow.begin(), slidingWindow.end(), heap_cmp);
-                slidingWindow.pop_back();
               }
+              std::pop_heap(slidingWindow.begin(), slidingWindow.end(), heap_cmp);
+              slidingWindow.pop_back();
 
             }
             inserted = true;
+            slidingWindow.push_back(*windowIt);
+            std::push_heap(slidingWindow.begin(), slidingWindow.end(), heap_cmp);
             if (windowLen > 0) 
             {
               hash_to_freq[windowIt->hash]++;
             }
             if (windowLen == 0 || hash_to_freq[windowIt->hash] == 1) {
               slideMap.insert_minmer(*windowIt);
-              slidingWindow.push_back(*windowIt);
-              std::push_heap(slidingWindow.begin(), slidingWindow.end(), heap_cmp);
             } else {
               windowIt++;
               continue;
