@@ -1411,7 +1411,7 @@ namespace skch
               if (in_candidate) {
                 // Save and reset
                 l2_out.meanOptimalPos =  (l2_out.optimalStart + l2_out.optimalEnd) / 2;
-                l2_out.seqId = windowIt->seqId;
+                l2_out.seqId = candidateLocus.seqId;
                 l2_out.strand = prev_strand_votes >= 0 ? strnd::FWD : strnd::REV;
                 if (l2_vec_out.empty() 
                     || l2_vec_out.back().optimalEnd + param.segLength < l2_out.optimalStart)
@@ -1434,7 +1434,7 @@ namespace skch
           if (in_candidate) {
             // Save and reset
             l2_out.meanOptimalPos =  (l2_out.optimalStart + l2_out.optimalEnd) / 2;
-            l2_out.seqId = std::prev(windowIt)->seqId;
+            //l2_out.seqId = std::prev(windowIt)->seqId;
             l2_out.strand = slideMap.strand_votes >= 0 ? strnd::FWD : strnd::REV;
             if (l2_vec_out.empty() 
                 || l2_vec_out.back().optimalEnd + param.segLength < l2_out.optimalStart)
