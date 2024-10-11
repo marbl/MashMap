@@ -837,7 +837,7 @@ namespace skch
           int orig_len = Q.minmerTableQuery.size();
 #endif
           const double max_hash_01 = (long double)(Q.minmerTableQuery.back().hash) / std::numeric_limits<hash_t>::max();
-          Q.kmerComplexity = (double(Q.minmerTableQuery.size()) / max_hash_01) / ((Q.len - param.kmerSize + 1)*2);
+          Q.kmerComplexity = param.split ? 1 : (double(Q.minmerTableQuery.size()) / max_hash_01) / ((Q.len - param.kmerSize + 1)*2);
 
           // TODO remove them from the original sketch instead of removing for each read
           auto new_end = std::remove_if(Q.minmerTableQuery.begin(), Q.minmerTableQuery.end(), [&](auto& mi) {
@@ -1434,7 +1434,7 @@ namespace skch
           if (in_candidate) {
             // Save and reset
             l2_out.meanOptimalPos =  (l2_out.optimalStart + l2_out.optimalEnd) / 2;
-            //l2_out.seqId = std::prev(windowIt)->seqId;
+            l2_out.seqId = candidateLocus.seqId;
             l2_out.strand = slideMap.strand_votes >= 0 ? strnd::FWD : strnd::REV;
             if (l2_vec_out.empty() 
                 || l2_vec_out.back().optimalEnd + param.segLength < l2_out.optimalStart)
@@ -1780,8 +1780,11 @@ namespace skch
             outstrm  << sep << e.conservedSketches
                      << sep << e.blockLength
                      << sep << fakeMapQ
-                     << sep << "id:f:" << (param.report_ANI_percentage ? 100.0 : 1.0) * e.nucIdentity
-                     << sep << "kc:f:" << e.kmerComplexity;
+                     << sep << "id:f:" << (param.report_ANI_percentage ? 100.0 : 1.0) * e.nucIdentity;
+            if (param.split)
+            {
+              outstrm << sep << "kc:f:" << e.kmerComplexity;
+            }
             if (!param.mergeMappings) 
             {
               outstrm << sep << "jc:f:" << float(e.conservedSketches) / e.sketchSize;
