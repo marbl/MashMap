@@ -54,6 +54,7 @@ struct Parameters
     stdfs::path saveIndexFilename;                    //output file name of index
     stdfs::path loadIndexFilename;                    //input file name of index
     bool split;                                       //Split read mapping (done if this is true)
+    bool forceGlobalQuerySketch;                      //Use the minhash sketch for entire query even if --noSplit is used
     bool lower_triangular;                            // set to true if we should filter out half of the mappings
     bool skip_self;                                   //skip self mappings
     bool skip_prefix;                                 //skip mappings to sequences with the same prefix

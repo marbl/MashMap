@@ -818,15 +818,22 @@ namespace skch
         void getSeedHits(Q_Info &Q)
         {
           Q.minmerTableQuery.reserve(param.sketchSize + 1);
-          if (Q.len > 1.5 * param.segLength)
+
+          // Use global sketch of param.sketchSize if 
+          // (a) We are splitting the query into segments
+          // (b) We are not splitting the query, but we want unbiased Jaccard 
+          // (c) We are not splitting the query, but it isn't even longer than param.segLength
+          if (param.split 
+              || param.forceGlobalQuerySketch
+              || Q.len <= param.segLength)
+          {
+            CommonFunc::sketchSequence(Q.minmerTableQuery, Q.seq, Q.len, param.kmerSize, param.alphabetSize, param.sketchSize, Q.seqCounter);
+          }
+          else
           {
             CommonFunc::addMinmers(Q.minmerTableQuery, Q.seq, Q.len, param.kmerSize, param.segLength, param.alphabetSize, param.sketchSize, Q.seqCounter);
             std::sort(Q.minmerTableQuery.begin(), Q.minmerTableQuery.end(), [](const MinmerInfo& l, const MinmerInfo& r) {return l.hash < r.hash;});
             Q.minmerTableQuery.erase(std::unique(Q.minmerTableQuery.begin(), Q.minmerTableQuery.end()), Q.minmerTableQuery.end());
-          }
-          else
-          {
-            CommonFunc::sketchSequence(Q.minmerTableQuery, Q.seq, Q.len, param.kmerSize, param.alphabetSize, param.sketchSize, Q.seqCounter);
           }
           if(Q.minmerTableQuery.size() == 0) {
             Q.sketchSize = 0;

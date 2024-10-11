@@ -60,7 +60,7 @@ sequences shorter than segment length will be ignored", ArgvParser::OptionRequir
     cmd.defineOption("sketchSize", "Number of sketch elements", ArgvParser::OptionRequiresValue);
     cmd.defineOptionAlternative("sketchSize","J");
 
-    cmd.defineOption("dense", "Use dense sketching to yield higher ANI estimation accuracy. [disabled by default]");
+    cmd.defineOption("dense", "Use dense sketching to yield higher ANI estimation accuracy.");
 
     cmd.defineOption("blockLength", "keep merged mappings supported by homologies of at least this length [default: segmentLength]", ArgvParser::OptionRequiresValue);
     cmd.defineOptionAlternative("blockLength", "l");
@@ -77,7 +77,8 @@ sequences shorter than segment length will be ignored", ArgvParser::OptionRequir
     cmd.defineOption("loadIndex", "Prefix of index files to load, where PREFIX.map and PREFIX.index are the files to be loaded", ArgvParser::OptionRequiresValue);
 
 
-    cmd.defineOption("noSplit", "disable splitting of input sequences during mapping [enabled by default]");
+    cmd.defineOption("noSplit", "disable splitting of input sequences during mapping");
+    cmd.defineOption("unbiasedNoSplit", "same as noSplit, but uses same sketch size for each query, regardless of length. This leads to unbiased Jaccard prediction and faster mappings at a potential loss in mapping accuracy.");
 
     cmd.defineOption("perc_identity", "threshold for identity [default : 85]", ArgvParser::OptionRequiresValue);
     cmd.defineOptionAlternative("perc_identity","pi");
@@ -416,16 +417,15 @@ sequences shorter than segment length will be ignored", ArgvParser::OptionRequir
     else
       parameters.filterMode = filter::MAP;
 
-    if(cmd.foundOption("noSplit"))
+    parameters.forceGlobalQuerySketch = cmd.foundOption("unbiasedNoSplit");
+    parameters.split = !cmd.foundOption("noSplit") && !cmd.foundOption("unbiasedNoSplit");
+    if(!parameters.split)
     {
-      parameters.split = false;
       if (parameters.stage1_topANI_filter)
         std::cerr << "WARNING, skch::parseandSave, hypergeometric filter is incompatible with --noSplit. Disabling hypergeometric filter." << std::endl;
 
       parameters.stage1_topANI_filter = false;
     }
-    else
-      parameters.split = true;
 
     if(cmd.foundOption("noMerge"))
     {
